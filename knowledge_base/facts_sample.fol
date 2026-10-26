@@ -1,0 +1,77 @@
+% Facts generated from Advanced Web Ranking data (CSV sample_awr_export.csv)
+% site: shoeshop.example   search engine: Google USA
+% current date: 2026-10-19   previous date: 2026-10-12
+% competitors: runfast.example, sportzone.example
+
+Tracked('best running shoes').
+Ranking('best running shoes', 12).
+PreviousRanking('best running shoes', 11).
+RankingUrl('best running shoes', 'https://shoeshop.example/best-running-shoes').
+CompetitorRanking('best running shoes', 'runfast.example', 4).
+CompetitorRanking('best running shoes', 'sportzone.example', 9).
+InGroup('best running shoes', 'Running Shoes').
+Tracked('cheap running shoes').
+Ranking('cheap running shoes', 101).
+PreviousRanking('cheap running shoes', 101).
+CompetitorRanking('cheap running shoes', 'runfast.example', 12).
+CompetitorRanking('cheap running shoes', 'sportzone.example', 20).
+InGroup('cheap running shoes', 'Deals').
+InGroup('cheap running shoes', 'Running Shoes').
+Tracked('kids running shoes').
+Ranking('kids running shoes', 2).
+PreviousRanking('kids running shoes', 3).
+RankingUrl('kids running shoes', 'https://shoeshop.example/kids-running-shoes').
+CompetitorRanking('kids running shoes', 'runfast.example', 5).
+InGroup('kids running shoes', 'Running Shoes').
+Tracked('marathon shoes').
+Ranking('marathon shoes', 17).
+PreviousRanking('marathon shoes', 18).
+RankingUrl('marathon shoes', 'https://shoeshop.example/marathon-shoes').
+CompetitorRanking('marathon shoes', 'runfast.example', 25).
+InGroup('marathon shoes', 'Running Shoes').
+Tracked('running shoes online').
+Ranking('running shoes online', 25).
+PreviousRanking('running shoes online', 24).
+RankingUrl('running shoes online', 'https://shoeshop.example/running-shoes').
+CompetitorRanking('running shoes online', 'runfast.example', 8).
+CompetitorRanking('running shoes online', 'sportzone.example', 30).
+InGroup('running shoes online', 'Running Shoes').
+Tracked('running shoes sale').
+Ranking('running shoes sale', 33).
+PreviousRanking('running shoes sale', 35).
+RankingUrl('running shoes sale', 'https://shoeshop.example/sale').
+InGroup('running shoes sale', 'Deals').
+Tracked('running socks').
+Ranking('running socks', 8).
+PreviousRanking('running socks', 9).
+RankingUrl('running socks', 'https://shoeshop.example/running-socks').
+CompetitorRanking('running socks', 'sportzone.example', 12).
+InGroup('running socks', 'Accessories').
+Tracked('sneaker cleaning kit').
+Ranking('sneaker cleaning kit', 19).
+PreviousRanking('sneaker cleaning kit', 18).
+RankingUrl('sneaker cleaning kit', 'https://shoeshop.example/cleaning-kit').
+CompetitorRanking('sneaker cleaning kit', 'sportzone.example', 6).
+InGroup('sneaker cleaning kit', 'Accessories').
+InGroup('sneaker cleaning kit', 'Sneakers').
+Tracked('trail running shoes').
+Ranking('trail running shoes', 14).
+PreviousRanking('trail running shoes', 5).
+RankingUrl('trail running shoes', 'https://shoeshop.example/trail-running-shoes').
+CompetitorRanking('trail running shoes', 'runfast.example', 6).
+CompetitorRanking('trail running shoes', 'sportzone.example', 11).
+InGroup('trail running shoes', 'Running Shoes').
+Tracked('waterproof sneakers').
+Ranking('waterproof sneakers', 7).
+PreviousRanking('waterproof sneakers', 6).
+RankingUrl('waterproof sneakers', 'https://shoeshop.example/waterproof-sneakers').
+CompetitorRanking('waterproof sneakers', 'runfast.example', 3).
+CompetitorRanking('waterproof sneakers', 'sportzone.example', 15).
+InGroup('waterproof sneakers', 'Sneakers').
+Tracked('womens running shoes').
+Ranking('womens running shoes', 9).
+PreviousRanking('womens running shoes', 2).
+RankingUrl('womens running shoes', 'https://shoeshop.example/womens-running-shoes').
+CompetitorRanking('womens running shoes', 'runfast.example', 5).
+CompetitorRanking('womens running shoes', 'sportzone.example', 4).
+InGroup('womens running shoes', 'Running Shoes').

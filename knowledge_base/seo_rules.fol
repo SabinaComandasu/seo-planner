@@ -1,0 +1,61 @@
+% ============================================================================
+%  SEO knowledge base - rules in first-order logic (Horn clauses + NAF)
+%
+%  H :- B1, ..., Bn.   reads   forall vars ( B1 and ... and Bn -> H )
+%  "not B" is negation-as-failure (closed-world assumption).
+%
+%  Base facts are generated from Advanced Web Ranking data (see facts_*.fol):
+%    Tracked(K)                  keyword K is tracked in the AWR project
+%    Ranking(K, P)               our current position for K (101 = not in top 100)
+%    PreviousRanking(K, P)       our position at the start of the compared period
+%    CompetitorRanking(K, C, P)  best position of competitor website C for K
+%    RankingUrl(K, U)            our page that ranks for K
+%
+%  Fluents (facts added by planner actions):
+%    Audited(K), DropInvestigated(K), CompetitorsAnalyzed(K), OnPageOptimized(K),
+%    ContentImproved(K), HasLandingPage(K), InternalLinksAdded(K), Rechecked(K)
+% ============================================================================
+
+% ---- Classification of keywords ------------------------------------------------
+InTop3(K)              :- Ranking(K, P), P <= 3.
+FirstPage(K)           :- Ranking(K, P), P <= 10.
+StrikingDistance(K)    :- Ranking(K, P), P >= 4, P <= 20.
+NotRanking(K)          :- Ranking(K, P), P > 50.
+Dropped(K)             :- Ranking(K, P), PreviousRanking(K, P0), D is P - P0, D >= 5.
+Improving(K)           :- Ranking(K, P), PreviousRanking(K, P0), D is P0 - P, D >= 5.
+BeatenBy(K, C)         :- Ranking(K, P), CompetitorRanking(K, C, Q), Q < P.
+LosingToCompetitor(K)  :- BeatenBy(K, C).
+OutrankedByAll(K)      :- Tracked(K), CompetitorRanking(K, _C, _Q), not BeatsSomeCompetitor(K).
+BeatsSomeCompetitor(K) :- Ranking(K, P), CompetitorRanking(K, C, Q), P < Q.
+RankingPageExists(K)   :- RankingUrl(K, U).
+RankingPageExists(K)   :- HasLandingPage(K).
+
+% ---- When does a keyword need work? ---------------------------------------------
+NeedsOptimization(K)   :- Ranking(K, P), P > 10.
+NeedsOptimization(K)   :- Dropped(K).
+NeedsOptimization(K)   :- StrikingDistance(K), LosingToCompetitor(K).
+Healthy(K)             :- Tracked(K), not NeedsOptimization(K).
+
+% ---- Prioritisation (1 = most urgent) -------------------------------------------
+Urgent(K)              :- NeedsOptimization(K), Dropped(K).
+Priority(K, 1)         :- Urgent(K).
+Priority(K, 2)         :- NeedsOptimization(K), not Urgent(K), StrikingDistance(K).
+Priority(K, 3)         :- NeedsOptimization(K), not Urgent(K), not StrikingDistance(K).
+% total order: lower priority number first, ties broken alphabetically
+HigherPriority(J, K)   :- Priority(J, A), Priority(K, B), A < B.
+HigherPriority(J, K)   :- Priority(J, A), Priority(K, A), J < K.
+
+% ---- Planning-state rules (depend on fluents) -----------------------------------
+Improved(K)            :- OnPageOptimized(K).
+Improved(K)            :- ContentImproved(K).
+Improved(K)            :- HasLandingPage(K).
+DropHandled(K)         :- NeedsOptimization(K), not Dropped(K).
+DropHandled(K)         :- DropInvestigated(K).
+GapHandled(K)          :- NeedsOptimization(K), not LosingToCompetitor(K).
+GapHandled(K)          :- CompetitorsAnalyzed(K), ContentImproved(K).
+Addressed(K)           :- Improved(K), InternalLinksAdded(K), DropHandled(K), GapHandled(K).
+% strict-priority policy: a keyword is blocked while a more urgent in-scope keyword is open
+Blocked(K)             :- HigherPriority(J, K), InScope(J), not Addressed(J).
+
+% ---- Goal -----------------------------------------------------------------------
+Done(K)                :- InScope(K), Rechecked(K).

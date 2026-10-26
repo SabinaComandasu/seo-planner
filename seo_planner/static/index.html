@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SEO Planner</title>
+<style>
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --panel-2: #f0f2f5; --border: #dfe3e8; --text: #1b1f24; --muted: #5f6b7a;
+  --accent: #2557d6; --accent-ink: #ffffff; --accent-soft: #e6edfc;
+  --good: #1a7f4b; --good-soft: #e3f4ea; --bad: #c0362c; --bad-soft: #fbe7e5; --warn: #9a6200; --warn-soft: #fbf0d9;
+  --info: #5b4bc4; --info-soft: #ece9fb; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111418; --panel: #191d23; --panel-2: #20252c; --border: #2d333b; --text: #e6e9ee; --muted: #9aa5b4;
+    --accent: #6b93ff; --accent-ink: #0d1117; --accent-soft: #1d2a4a;
+    --good: #4cc38a; --good-soft: #15301f; --bad: #ff7b72; --bad-soft: #3a1a18; --warn: #e3b341; --warn-soft: #362a10;
+    --info: #a99cff; --info-soft: #262046; --shadow: none;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--border); }
+header h1 { font-size: 17px; margin: 0; }
+header .sub { color: var(--muted); font-size: 13px; }
+header .pill { margin-left: auto; }
+.layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; padding: 20px 24px; align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 16px; } }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px; }
+.card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+.step { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; }
+.card.disabled { opacity: .55; pointer-events: none; }
+label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin: 10px 0 4px; }
+input, select, button { font: inherit; color: inherit; }
+input[type=text], input[type=password], input[type=number], select {
+  width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); }
+input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.row > * { flex: 1; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+button { cursor: pointer; border: 1px solid var(--border); background: var(--panel); border-radius: 7px; padding: 8px 12px; }
+button:hover { background: var(--panel-2); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button.primary:hover { filter: brightness(1.07); }
+button.link { border: none; background: none; color: var(--accent); padding: 0; }
+button:disabled { opacity: .5; cursor: default; }
+.actions { display: flex; gap: 8px; margin-top: 14px; }
+.actions > button { flex: 1; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+.check { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text); font-weight: 400; margin-top: 12px; }
+.status { font-size: 13px; margin-top: 10px; display: flex; align-items: center; gap: 8px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex: none; }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 12px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); white-space: nowrap; }
+.chip { display: inline-block; padding: 1px 7px; border-radius: 5px; font-size: 11.5px; margin: 1px 3px 1px 0; white-space: nowrap; }
+.c-bad { background: var(--bad-soft); color: var(--bad); } .c-good { background: var(--good-soft); color: var(--good); }
+.c-warn { background: var(--warn-soft); color: var(--warn); } .c-info { background: var(--info-soft); color: var(--info); }
+.c-neutral { background: var(--panel-2); color: var(--muted); }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.tab { border: none; background: none; border-radius: 0; padding: 10px 14px; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 600; }
+.tab:hover { background: none; color: var(--text); }
+.tab[aria-selected=true] { color: var(--accent); border-bottom-color: var(--accent); }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+@media (max-width: 700px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.tile { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+.tile .n { font-size: 24px; font-weight: 700; } .tile .l { color: var(--muted); font-size: 12px; }
+.table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; background: var(--panel-2); position: sticky; top: 0; }
+tr:last-child td { border-bottom: none; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.up { color: var(--good); } .down { color: var(--bad); }
+.empty { text-align: center; color: var(--muted); padding: 48px 16px; background: var(--panel); border: 1px dashed var(--border); border-radius: 10px; }
+.steps { list-style: none; padding: 0; margin: 0; }
+.steps li { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px 12px 52px; margin-bottom: 8px; position: relative; }
+.steps li::before { content: attr(data-n); position: absolute; left: 14px; top: 12px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-weight: 700; font-size: 12px; }
+.steps .top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.steps .name { font-weight: 600; }
+.steps .detail { color: var(--muted); font-weight: 400; }
+.steps .cost { margin-left: auto; }
+.steps details { margin-top: 6px; }
+.steps summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+code, .mono { font-family: var(--mono); font-size: 12.5px; }
+.because { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 4px; word-break: break-word; }
+.group-head { font-size: 12px; font-weight: 700; color: var(--muted); margin: 18px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+.toolbar .spacer { flex: 1; }
+pre.proof { background: var(--panel-2); border-radius: 7px; padding: 10px; overflow-x: auto; font-size: 12px; margin: 6px 0 0; }
+.answer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; }
+.rule { font-family: var(--mono); font-size: 12.5px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.rule:last-child { border-bottom: none; }
+.error { background: var(--bad-soft); color: var(--bad); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; display: none; }
+.busy { position: fixed; inset: auto 24px 24px auto; background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; display: none; align-items: center; gap: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+.spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>SEO Optimization Planner</h1>
+    <div class="sub">First-order logic + search over Advanced Web Ranking data</div>
+  </div>
+  <span class="pill" id="sourcePill">No data loaded</span>
+</header>
+
+<div class="layout">
+  <aside>
+    <section class="card" id="cardConnect">
+      <h2><span class="step">1</span> Connect to AWR</h2>
+      <div id="connectForm">
+        <label for="token">API key</label>
+        <div class="row">
+          <input type="password" id="token" autocomplete="off" spellcheck="false" placeholder="Paste your AWR API key">
+          <button id="toggleToken" style="flex:none" title="Show or hide the key" aria-label="Show or hide the key">Show</button>
+        </div>
+        <div class="hint">Kept only in this app's memory on your computer, never saved to disk.</div>
+        <div class="actions"><button class="primary" id="btnConnect">Connect</button></div>
+      </div>
+      <div id="connected" hidden>
+        <div class="status"><span class="dot"></span><span id="connectedText">Connected</span></div>
+        <div class="actions"><button id="btnDisconnect">Disconnect</button></div>
+      </div>
+      <div class="hint" style="margin-top:12px">No key at hand? <button class="link" id="btnSample">Use sample data</button></div>
+    </section>
+
+    <section class="card disabled" id="cardData">
+      <h2><span class="step">2</span> Ranking data</h2>
+      <div id="projectWrap">
+        <label for="project">Project</label>
+        <select id="project"></select>
+      </div>
+      <div class="grid2">
+        <div>
+          <label for="current">Ranking update</label>
+          <select id="current"></select>
+        </div>
+        <div>
+          <label for="previous">Compare with</label>
+          <select id="previous"></select>
+        </div>
+      </div>
+      <div class="hint" id="dateHint"></div>
+      <div class="actions" id="loadActions"><button class="primary" id="btnLoad">Load rankings</button></div>
+    </section>
+
+    <section class="card disabled" id="cardPlan">
+      <h2><span class="step">3</span> Plan settings</h2>
+      <label for="site">Your website</label>
+      <select id="site"></select>
+      <div id="engineWrap" hidden>
+        <label for="engine">Search engine</label>
+        <select id="engine"></select>
+      </div>
+      <label for="group">Keyword group</label>
+      <select id="group"></select>
+      <div class="hint" id="groupHint"></div>
+      <div class="grid2">
+        <div>
+          <label for="top">Keywords to plan</label>
+          <input type="number" id="top" min="1" max="25" value="5">
+        </div>
+        <div>
+          <label for="algorithm">Search algorithm</label>
+          <select id="algorithm">
+            <option value="astar">A* (optimal, fast)</option>
+            <option value="ucs">Uniform-cost</option>
+            <option value="bfs">Breadth-first</option>
+            <option value="compare">Compare all three</option>
+          </select>
+        </div>
+      </div>
+      <label class="check"><input type="checkbox" id="strict" checked> Work on keywords in priority order</label>
+      <div class="hint" id="selHint"></div>
+      <div class="actions"><button class="primary" id="btnPlan">Generate plan</button></div>
+    </section>
+  </aside>
+
+  <main>
+    <div class="error" id="error" role="alert"></div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="keywords" aria-selected="true">Keywords</button>
+      <button class="tab" role="tab" data-tab="plan" aria-selected="false">Plan</button>
+      <button class="tab" role="tab" data-tab="query" aria-selected="false">Query</button>
+      <button class="tab" role="tab" data-tab="rules" aria-selected="false">Rules</button>
+    </nav>
+
+    <section data-panel="keywords">
+      <div id="kwEmpty" class="empty">Connect to AWR (or use the sample data), load rankings and choose your website.</div>
+      <div id="kwContent" hidden>
+        <div class="tiles" id="tiles"></div>
+        <div class="toolbar">
+          <span class="hint" id="kwCaption" style="margin:0"></span>
+          <span class="spacer"></span>
+          <label class="check" style="margin:0"><input type="checkbox" id="onlyNeeds"> Only keywords that need work</label>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr>
+            <th style="width:28px"><input type="checkbox" id="selAll" title="Select all keywords that need work" aria-label="Select all"></th>
+            <th>Keyword</th><th>Group</th><th class="num">Position</th><th class="num">Change</th>
+            <th>Best competitor</th><th>Status</th><th class="num">Priority</th>
+          </tr></thead>
+          <tbody id="kwBody"></tbody>
+        </table></div>
+      </div>
+    </section>
+
+    <section data-panel="plan" hidden>
+      <div id="planEmpty" class="empty">Choose your settings and click <b>Generate plan</b>.</div>
+      <div id="planContent" hidden>
+        <div class="tiles" id="planTiles"></div>
+        <div id="compare"></div>
+        <div class="toolbar">
+          <span class="hint" id="planCaption" style="margin:0"></span>
+          <span class="spacer"></span>
+          <label class="check" style="margin:0"><input type="checkbox" id="groupByKw" checked> Group by keyword</label>
+          <button id="btnDownloadPlan">Download plan (.md)</button>
+          <button id="btnDownloadFacts">Download facts (.fol)</button>
+        </div>
+        <div id="steps"></div>
+      </div>
+    </section>
+
+    <section data-panel="query" hidden>
+      <div class="card">
+        <label for="goal" style="margin-top:0">FOL query (variables start with an uppercase letter)</label>
+        <div class="row">
+          <input type="text" id="goal" class="mono" spellcheck="false" value="NeedsOptimization(K), BeatenBy(K, C)">
+          <button class="primary" id="btnQuery" style="flex:none">Ask</button>
+        </div>
+        <label class="check"><input type="checkbox" id="why"> Show proof for each answer</label>
+        <div class="toolbar" style="margin:10px 0 0" id="examples"></div>
+      </div>
+      <div id="answers"></div>
+    </section>
+
+    <section data-panel="rules" hidden>
+      <div class="toolbar"><span class="hint" style="margin:0">Rules from <code>knowledge_base/seo_rules.fol</code>, grouped by stratum (negation only uses lower strata).</span>
+        <span class="spacer"></span><label class="check" style="margin:0"><input type="checkbox" id="asClause"> Show as clauses</label></div>
+      <div id="rules"></div>
+    </section>
+  </main>
+</div>
+
+<div class="busy" id="busy"><span class="spinner"></span><span id="busyText">Working…</span></div>
+
+<script>
+const SECRET = "{{SESSION_SECRET}}";
+const $ = id => document.getElementById(id);
+const state = { mode: null, loaded: null, analysis: null, plan: null, selected: new Set(), rules: null };
+
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function opt(value, label, selected) { return `<option value="${esc(value)}"${selected ? " selected" : ""}>${esc(label)}</option>`; }
+function fmtPos(p) { return p == null ? "–" : p > 100 ? "not ranking" : "#" + p; }
+
+async function api(name, body = {}, busyText = "Working…") {
+  showError("");
+  $("busyText").textContent = busyText; $("busy").style.display = "flex";
+  try {
+    const r = await fetch("/api/" + name, { method: "POST", headers: { "Content-Type": "application/json", "X-Session": SECRET }, body: JSON.stringify(body) });
+    const data = await r.json().catch(() => ({ error: "Unexpected response from the local server" }));
+    if (!r.ok) throw new Error(data.error || r.statusText);
+    return data;
+  } catch (e) {
+    showError(e.message === "Failed to fetch" ? "The local server is not running. Start it with: python -m seo_planner.web" : e.message);
+    throw e;
+  } finally { $("busy").style.display = "none"; }
+}
+function showError(msg) { $("error").textContent = msg; $("error").style.display = msg ? "block" : "none"; }
+
+// ------------------------------------------------------------------ tabs
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => selectTab(t.dataset.tab)));
+function selectTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
+  document.querySelectorAll("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== name);
+  if (name === "rules" && !state.rules) loadRules();
+}
+
+// ------------------------------------------------------------------ step 1: connect
+$("toggleToken").onclick = () => {
+  const t = $("token"); t.type = t.type === "password" ? "text" : "password";
+  $("toggleToken").textContent = t.type === "password" ? "Show" : "Hide";
+};
+$("token").addEventListener("keydown", e => { if (e.key === "Enter") $("btnConnect").click(); });
+$("btnConnect").onclick = async () => {
+  const token = $("token").value.trim();
+  if (!token) return showError("Paste your AWR API key first.");
+  const r = await api("connect", { token }, "Connecting to AWR…").catch(() => null);
+  if (!r) return;
+  $("token").value = ""; $("token").type = "password"; $("toggleToken").textContent = "Show";
+  state.mode = "api";
+  $("connectForm").hidden = true; $("connected").hidden = false;
+  $("connectedText").textContent = `Connected · ${r.projects.length} project${r.projects.length === 1 ? "" : "s"}`;
+  $("projectWrap").hidden = false; $("loadActions").hidden = false;
+  $("project").innerHTML = opt("", "Choose a project…") + r.projects.map(p => opt(p.name, p.name)).join("");
+  $("current").innerHTML = $("previous").innerHTML = ""; $("dateHint").textContent = "";
+  $("cardData").classList.remove("disabled"); $("cardPlan").classList.add("disabled");
+};
+$("btnDisconnect").onclick = async () => {
+  await api("disconnect").catch(() => null);
+  $("connectForm").hidden = false; $("connected").hidden = true;
+  $("cardData").classList.add("disabled");
+  if (state.mode === "api") { state.mode = null; }
+};
+
+// ------------------------------------------------------------------ step 2: dates and rankings
+$("project").onchange = async () => {
+  const project = $("project").value;
+  $("current").innerHTML = $("previous").innerHTML = "";
+  if (!project) return;
+  const r = await api("dates", { project }, "Loading ranking dates…").catch(() => null);
+  if (!r) return;
+  fillDates(r.dates);
+};
+function fillDates(datesDesc, current, previous) {
+  current = current || datesDesc[0];
+  $("current").innerHTML = datesDesc.map(d => opt(d, d, d === current)).join("");
+  fillPrevious(datesDesc, previous);
+  state.allDates = datesDesc;
+}
+function fillPrevious(datesDesc, previous) {
+  const cur = $("current").value;
+  const older = datesDesc.filter(d => d < cur);
+  previous = previous && older.includes(previous) ? previous : older[0];
+  $("previous").innerHTML = older.map(d => opt(d, d, d === previous)).join("") + opt("", "No comparison", !previous);
+  updateDateHint();
+}
+$("current").onchange = () => { fillPrevious(state.allDates || [], $("previous").value); datesChanged(); };
+$("previous").onchange = () => { updateDateHint(); datesChanged(); };
+function datesAvailable() {
+  const L = state.loaded; if (!L) return false;
+  const need = [$("current").value, $("previous").value].filter(Boolean);
+  return need.every(d => L.data_dates.length === 0 || L.data_dates.includes(d));
+}
+function updateDateHint() {
+  const cur = $("current").value, prev = $("previous").value;
+  if (!cur) { $("dateHint").textContent = ""; return; }
+  $("dateHint").textContent = prev ? `Positions on ${cur}, changes measured against ${prev}.` : `Positions on ${cur}; no drop/improvement analysis.`;
+  if (state.mode === "api" && state.loaded && !datesAvailable()) $("dateHint").textContent += " Click Load rankings to fetch these dates.";
+}
+function datesChanged() { if (datesAvailable() && $("site").value) analyze(); }
+
+$("btnLoad").onclick = async () => {
+  const project = $("project").value, current = $("current").value, previous = $("previous").value;
+  if (!project || !current) return showError("Choose a project and a ranking update date.");
+  const r = await api("load", { project, current, previous }, "Exporting rankings from AWR… (large projects can take a minute)").catch(() => null);
+  if (r) afterLoad(r);
+};
+$("btnSample").onclick = async () => {
+  const r = await api("load-sample", {}, "Loading sample data…").catch(() => null);
+  if (!r) return;
+  state.mode = "sample";
+  $("cardData").classList.remove("disabled");
+  $("projectWrap").hidden = true; $("loadActions").hidden = true;
+  fillDates(r.dates, r.current, r.previous);
+  afterLoad(r);
+};
+function afterLoad(r) {
+  state.loaded = r; state.selected.clear();
+  $("sourcePill").textContent = `${r.source} · ${r.keywords} keywords`;
+  const prevSite = $("site").value;
+  $("site").innerHTML = opt("", "Choose your website…") + r.websites.map(w => opt(w, w, w === prevSite)).join("");
+  if (!$("site").value && r.source.startsWith("sample")) $("site").value = "shoeshop.example";
+  $("engineWrap").hidden = r.engines.length <= 1;
+  $("engine").innerHTML = r.engines.map(e => opt(e, e)).join("");
+  $("group").innerHTML = opt("", "All keywords") + r.groups.map(g => opt(g, g)).join("");
+  $("group").disabled = r.groups.length === 0;
+  $("groupHint").textContent = r.groups.length ? `${r.groups.length} groups · from ${r.group_source}` : `No keyword groups: ${r.group_source}.`;
+  $("cardPlan").classList.remove("disabled");
+  updateDateHint();
+  if ($("site").value) analyze(); else selectTab("keywords");
+}
+
+// ------------------------------------------------------------------ step 3: analyse + plan
+function settings() {
+  return { site: $("site").value, engine: $("engine").value, group: $("group").value,
+           current: $("current").value, previous: $("previous").value,
+           top: +$("top").value || 5, algorithm: $("algorithm").value, strict: $("strict").checked };
+}
+["site", "engine", "group"].forEach(id => $(id).addEventListener("change", () => { state.selected.clear(); analyze(); }));
+async function analyze() {
+  if (!$("site").value) return;
+  if (!datesAvailable()) return showError("The selected dates are not in the loaded data. Click Load rankings.");
+  const r = await api("analyze", settings(), "Reasoning over the rankings…").catch(() => null);
+  if (!r) return;
+  state.analysis = r; renderKeywords(); selectTab("keywords");
+}
+function renderKeywords() {
+  const { info, keywords } = state.analysis;
+  const needs = keywords.filter(k => k.needs);
+  const tiles = [
+    [keywords.length, "keywords" + ($("group").value ? " in group" : "")],
+    [needs.length, "need optimisation"],
+    [keywords.filter(k => k.flags.includes("Dropped")).length, "dropped ≥ 5 positions"],
+    [keywords.filter(k => k.flags.includes("Healthy")).length, "healthy"],
+  ];
+  $("tiles").innerHTML = tiles.map(([n, l]) => `<div class="tile"><div class="n">${n}</div><div class="l">${esc(l)}</div></div>`).join("");
+  $("kwCaption").textContent = `${info.site} on ${info.current_date}` + (info.previous_date ? ` vs ${info.previous_date}` : "") + (info.engine ? ` · ${info.engine}` : "");
+  const only = $("onlyNeeds").checked;
+  const rows = keywords.filter(k => !only || k.needs).sort((a, b) => (a.priority ?? 9) - (b.priority ?? 9) || a.keyword.localeCompare(b.keyword));
+  const chip = { Dropped: ["c-bad", "dropped"], Improving: ["c-good", "improving"], NotRanking: ["c-bad", "not ranking"],
+    StrikingDistance: ["c-info", "striking distance"], LosingToCompetitor: ["c-warn", "behind competitor"],
+    OutrankedByAll: ["c-warn", "behind all competitors"], InTop3: ["c-good", "top 3"], Healthy: ["c-good", "healthy"] };
+  $("kwBody").innerHTML = rows.map(k => {
+    let change = "–";
+    if (k.previous != null && k.position != null && k.previous <= 100 && k.position <= 100) {
+      const d = k.previous - k.position;
+      change = d === 0 ? "0" : `<span class="${d > 0 ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${Math.abs(d)}</span>`;
+    } else if (k.previous != null && k.previous !== k.position) change = k.position > 100 ? '<span class="down">lost</span>' : '<span class="up">new</span>';
+    const comp = k.competitor ? `${esc(k.competitor.site)} <span class="hint">#${k.competitor.position}</span>` : '<span class="hint">–</span>';
+    const flags = k.flags.filter(f => !(f === "OutrankedByAll" && k.flags.includes("NotRanking"))).map(f => `<span class="chip ${chip[f][0]}">${chip[f][1]}</span>`).join("");
+    const pr = k.priority ? `<span class="chip ${k.priority === 1 ? "c-bad" : k.priority === 2 ? "c-warn" : "c-neutral"}">P${k.priority}</span>` : "";
+    return `<tr><td>${k.needs ? `<input type="checkbox" data-kw="${esc(k.keyword)}" ${state.selected.has(k.keyword) ? "checked" : ""} aria-label="Plan ${esc(k.keyword)}">` : ""}</td>
+      <td>${esc(k.keyword)}</td><td>${k.groups.map(g => `<span class="chip c-neutral">${esc(g)}</span>`).join("") || '<span class="hint">–</span>'}</td>
+      <td class="num">${fmtPos(k.position)}</td><td class="num">${change}</td><td>${comp}</td><td>${flags}</td><td class="num">${pr}</td></tr>`;
+  }).join("") || `<tr><td colspan="8" class="hint" style="text-align:center;padding:24px">No keywords match.</td></tr>`;
+  $("kwBody").querySelectorAll("input[data-kw]").forEach(cb => cb.onchange = () => {
+    cb.checked ? state.selected.add(cb.dataset.kw) : state.selected.delete(cb.dataset.kw); updateSelHint();
+  });
+  $("selAll").checked = needs.length > 0 && needs.every(k => state.selected.has(k.keyword));
+  $("kwEmpty").hidden = true; $("kwContent").hidden = false; updateSelHint();
+}
+$("onlyNeeds").onchange = () => state.analysis && renderKeywords();
+$("selAll").onchange = () => {
+  state.analysis.keywords.filter(k => k.needs).forEach(k => $("selAll").checked ? state.selected.add(k.keyword) : state.selected.delete(k.keyword));
+  renderKeywords();
+};
+function updateSelHint() {
+  const n = state.selected.size;
+  $("selHint").innerHTML = n ? `Planning the ${n} selected keyword${n > 1 ? "s" : ""}. <button class="link" id="clearSel">Clear selection</button>`
+    : `Planning the ${esc($("top").value)} most urgent keywords${$("group").value ? " in this group" : ""}. Tick keywords in the table to choose them yourself.`;
+  const c = $("clearSel"); if (c) c.onclick = () => { state.selected.clear(); renderKeywords(); };
+  $("top").disabled = n > 0;
+}
+$("top").oninput = updateSelHint;
+
+$("btnPlan").onclick = async () => {
+  if (!$("site").value) return showError("Choose your website first.");
+  if (!datesAvailable()) return showError("The selected dates are not in the loaded data. Click Load rankings.");
+  const body = { ...settings(), keywords: [...state.selected] };
+  const label = body.algorithm === "compare" ? "Running BFS, UCS and A*… (BFS/UCS can take a while)" : "Searching for a plan…";
+  const r = await api("plan", body, label).catch(() => null);
+  if (!r) return;
+  state.plan = r; renderPlan(); selectTab("plan");
+};
+const ACTION_LABEL = { AuditPage: "Audit page", InvestigateDrop: "Investigate drop", AnalyzeCompetitors: "Analyse competitors",
+  OptimizeOnPage: "On-page optimisation", CloseContentGap: "Close content gap", RewriteContent: "Rewrite content",
+  CreateLandingPage: "Create landing page", PublishSupportingArticle: "Supporting article", AddInternalLinks: "Internal links",
+  ScheduleRecheck: "Re-check rankings" };
+function renderPlan() {
+  const p = state.plan;
+  $("planEmpty").hidden = true; $("planContent").hidden = false;
+  const shown = p.runs.find(r => r.algorithm === p.algorithm);
+  $("planTiles").innerHTML = [
+    [p.scope.length, "keywords planned"], [p.found ? p.steps.length : "–", "actions"],
+    [p.found ? p.cost : "–", "total effort (cost)"], [shown.expanded.toLocaleString(), `states expanded (${p.algorithm})`],
+  ].map(([n, l]) => `<div class="tile"><div class="n">${n}</div><div class="l">${esc(l)}</div></div>`).join("");
+  $("compare").innerHTML = p.runs.length > 1 ? `<div class="table-wrap" style="margin-bottom:16px"><table><thead><tr><th>Algorithm</th><th>Result</th><th class="num">Steps</th><th class="num">Cost</th><th class="num">Expanded</th><th class="num">Generated</th><th class="num">Time</th></tr></thead><tbody>${
+    p.runs.map(r => `<tr><td><b>${esc(r.algorithm)}</b></td><td>${r.found ? '<span class="chip c-good">plan found</span>' : `<span class="chip c-bad">${esc(r.reason)}</span>`}</td><td class="num">${r.steps ?? "–"}</td><td class="num">${r.cost ?? "–"}</td><td class="num">${r.expanded.toLocaleString()}</td><td class="num">${r.generated.toLocaleString()}</td><td class="num">${r.seconds}s</td></tr>`).join("")
+  }</tbody></table></div>` : "";
+  $("planCaption").textContent = p.found ? `${p.info.site} · ranking update ${p.info.current_date}` : "";
+  if (!p.found) { $("steps").innerHTML = `<div class="empty">No plan found: ${esc(p.reason)}. Try A*, fewer keywords, or priority order.</div>`; return; }
+  const split = t => { const i = t.indexOf(" ["); return i < 0 ? [t, ""] : [t.slice(0, i), t.slice(i + 2, -1)]; };
+  const stepHtml = (s, i) => `<li data-n="${i + 1}"><div class="top"><span class="chip c-info">${esc(ACTION_LABEL[s.name] || s.name)}</span>
+      <span class="name">${esc(split(s.text)[0])}${split(s.text)[1] ? ` <span class="detail">· ${esc(split(s.text)[1])}</span>` : ""}</span><span class="pill cost">cost ${s.cost}</span></div>
+      <details><summary>Why is this action allowed?</summary><div class="because">${esc(s.action)}<br>because ${s.because.map(esc).join(" ∧ ")}</div></details></li>`;
+  if ($("groupByKw").checked) {
+    const order = [...new Set(p.steps.map(s => s.keyword))];
+    $("steps").innerHTML = order.map(k => `<div class="group-head">${esc(k)}</div><ol class="steps">${
+      p.steps.map((s, i) => [s, i]).filter(([s]) => s.keyword === k).map(([s, i]) => stepHtml(s, i)).join("")}</ol>`).join("")
+      + `<div class="hint">Step numbers show the order found by the search.</div>`;
+  } else {
+    $("steps").innerHTML = `<ol class="steps">${p.steps.map(stepHtml).join("")}</ol>`;
+  }
+}
+$("groupByKw").onchange = () => state.plan && renderPlan();
+
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$("btnDownloadPlan").onclick = () => {
+  const p = state.plan; if (!p || !p.found) return;
+  const lines = [`# SEO action plan for ${p.info.site}`, "",
+    `- Ranking update: ${p.info.current_date}` + (p.info.previous_date ? ` (compared with ${p.info.previous_date})` : ""),
+    `- Search engine: ${p.info.engine || "n/a"}`, `- Keyword group: ${$("group").value || "all"}`,
+    `- Algorithm: ${p.algorithm} · ${p.steps.length} actions · total cost ${p.cost}`, "", "## Steps", ""];
+  p.steps.forEach((s, i) => lines.push(`${i + 1}. **${ACTION_LABEL[s.name] || s.name}** (cost ${s.cost}): ${s.text}  `, `   _because_ \`${s.because.join(" ∧ ")}\``));
+  download(`seo-plan-${p.info.site}-${p.info.current_date}.md`, lines.join("\n") + "\n", "text/markdown");
+};
+$("btnDownloadFacts").onclick = async () => {
+  const r = await api("facts", {}, "Preparing facts…").catch(() => null);
+  if (r) download(`facts-${state.plan?.info.site || "awr"}.fol`, r.text, "text/plain");
+};
+
+// ------------------------------------------------------------------ query + rules
+const EXAMPLES = ["NeedsOptimization(K), BeatenBy(K, C)", "Dropped(K), Ranking(K, P), PreviousRanking(K, P0), D is P - P0",
+  "FirstPage(K), LosingToCompetitor(K)", "OutrankedByAll(K)", "InGroup(K, G), Priority(K, 1)", "Healthy(K)",
+  "StrikingDistance(K), not LosingToCompetitor(K)"];
+$("examples").innerHTML = '<span class="hint" style="margin:0">Examples:</span>' + EXAMPLES.map(q => `<button class="pill mono" data-q="${esc(q)}">${esc(q)}</button>`).join("");
+$("examples").querySelectorAll("[data-q]").forEach(b => b.onclick = () => { $("goal").value = b.dataset.q; $("btnQuery").click(); });
+$("goal").addEventListener("keydown", e => { if (e.key === "Enter") $("btnQuery").click(); });
+$("btnQuery").onclick = async () => {
+  const r = await api("query", { goal: $("goal").value, why: $("why").checked }, "Answering query…").catch(() => null);
+  if (!r) return;
+  $("answers").innerHTML = `<div class="hint" style="margin:0 0 8px">${r.answers.length} answer${r.answers.length === 1 ? "" : "s"}</div>` +
+    (r.answers.length ? r.answers.map(a => `<div class="answer"><span class="mono">${
+      Object.keys(a.bindings).length ? Object.entries(a.bindings).map(([v, t]) => `<b>${esc(v)}</b> = ${esc(t)}`).join(", ") : "yes"}</span>${
+      a.proof.length ? `<pre class="proof">${esc(a.proof.join("\n"))}</pre>` : ""}</div>`).join("") : `<div class="empty">No: the knowledge base does not entail this query.</div>`);
+};
+async function loadRules() {
+  const r = await api("rules", {}, "Loading rules…").catch(() => null);
+  if (!r) return;
+  state.rules = r; renderRules();
+}
+function renderRules() {
+  const clause = $("asClause").checked;
+  $("rules").innerHTML = state.rules.strata.map((s, i) => `<div class="card"><h2>Stratum ${i}</h2>${
+    s.map(r => `<div class="rule">${esc(clause ? r.clause : r.fol)}</div>`).join("")}</div>`).join("");
+}
+$("asClause").onchange = () => state.rules && renderRules();
+
+// http://127.0.0.1:8765/#demo loads the sample data and generates a plan (handy for presentations)
+if (location.hash.startsWith("#demo")) {
+  (async () => {
+    await $("btnSample").onclick();
+    await new Promise(r => setTimeout(r, 300));
+    if (location.hash === "#demo-plan") $("btnPlan").click();
+  })();
+}
+</script>
+</body>
+</html>
