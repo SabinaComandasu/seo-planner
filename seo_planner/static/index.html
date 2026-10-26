@@ -325,9 +325,9 @@ $("project").onchange = async () => {
   if (!r) return;
   fillDates(r.dates);
   $("loadGroup").innerHTML = (r.groups.length ? opt("", "Choose a keyword group…") : "")
-    + r.groups.map(g => opt(g.id, g.name)).join("") + opt(ALL, "All keywords (export the whole update)", !r.groups.length);
+    + r.groups.map(g => opt(g.id, g.name)).join("") + opt(ALL, "Full ranking export (slow, all keywords)", !r.groups.length);
   $("loadGroup").disabled = false;
-  $("loadEngine").innerHTML = r.engines.map(e => opt(e.id, e.name)).join("");
+  $("loadEngine").innerHTML = r.engines.map(e => opt(e.id, String(e.id) === "-1" ? "All search engines (best position across them)" : e.name)).join("");
   $("loadEngineWrap").hidden = r.engines.length <= 1;
   $("loadGroupHint").textContent = r.groups_error ? `Keyword groups unavailable (${r.groups_error}); only the full export can be used.`
     : r.groups.length ? `${r.groups.length} keyword groups. Only the chosen group is downloaded.` : "This project has no keyword groups.";
@@ -394,6 +394,7 @@ function afterLoad(r) {
   const prevSite = $("site").value;
   $("site").innerHTML = opt("", "Choose your website…") + r.websites.map(w => opt(w, w, w === prevSite)).join("");
   if (!$("site").value && r.source.startsWith("sample")) $("site").value = "shoeshop.example";
+  if (!$("site").value && r.main_website && r.websites.includes(r.main_website)) $("site").value = r.main_website;
   $("engineWrap").hidden = r.engines.length <= 1;
   $("engine").innerHTML = r.engines.map(e => opt(e, e)).join("");
   if (r.loaded_group) {

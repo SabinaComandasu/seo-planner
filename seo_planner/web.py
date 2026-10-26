@@ -67,9 +67,10 @@ def api_connect(body):
     for p in projects:
         if isinstance(p, dict):
             name = p.get("name") or p.get("projectName") or p.get("title") or str(p.get("id"))
-            norm.append({"name": name, "id": p.get("id") or p.get("projectId")})
+            norm.append({"name": name, "id": p.get("id") or p.get("projectId"),
+                         "main_website": p.get("main_website") or p.get("mainWebsite") or ""})
         else:
-            norm.append({"name": str(p), "id": None})
+            norm.append({"name": str(p), "id": None, "main_website": ""})
     with SESSION.lock:
         SESSION.client, SESSION.projects = client, norm
     return {"projects": sorted(norm, key=lambda p: p["name"].lower())}
@@ -161,7 +162,9 @@ def _load_group(client, project, group_id, engine_id, current, previous):
         SESSION.rows = rows
         SESSION.source = f"AWR “{project}” · group “{group['name']}”"
         SESSION.group_source = "keyword group chosen when loading"
+    main = next((p["main_website"] for p in SESSION.projects if p["name"] == project), "")
     return {**_load_result(summary, current, previous), "loaded_group": group["name"],
+            "main_website": awr._domain(main) if main else "",
             "note": "Only keywords where at least one tracked website ranks are returned for a group."}
 
 

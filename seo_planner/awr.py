@@ -176,7 +176,9 @@ class AWRClient:
 
     def ms_search_engines(self, project_id) -> list[dict]:
         data = self._json(f"/marketshare/projects/{_q(str(project_id))}/search-engines", tag="ms-engines")
-        return [e for e in (_id_name(r, label_extra=True) for r in _records(data)) if e["id"] not in (None, "")]
+        engines = [e for e in (_id_name(r, label_extra=True) for r in _records(data)) if e["id"] not in (None, "")]
+        # real engines first; "-1" (all engines, best position across them) last
+        return sorted(engines, key=lambda e: str(e["id"]) == "-1")
 
     def ms_websites(self, project_id) -> list[str]:
         data = self._json(f"/marketshare/projects/{_q(str(project_id))}/websites", tag="ms-websites")
@@ -186,10 +188,14 @@ class AWRClient:
                 out.append(r)
             else:
                 rec = _flatten(r)
+                if str(rec.get("id")) == "-1":          # the "All websites" pseudo-entry
+                    continue
                 key = _col(rec.keys(), "website") or _col(rec.keys(), "url") or next(
                     (k for k in rec if "name" in _norm(k)), None)
                 if key and rec[key]:
                     out.append(str(rec[key]))
+        # AWR can also track single URLs (e.g. "site.com/recipe/123/"); domain-keywords needs domains
+        out = [w for w in out if "/" not in w.strip().rstrip("/").split("://")[-1]]
         return list(dict.fromkeys(out))
 
     def domain_keywords(self, project_id, domain: str, date: str, group_id=-1, engine_id=-1) -> list[dict]:
@@ -241,6 +247,12 @@ def check_api_error(body: bytes) -> None:
         data = json.loads(body)
     except (json.JSONDecodeError, UnicodeDecodeError):
         return
+    if isinstance(data, dict) and data.get("errorCode") not in (None, 0, "0"):
+        # market-share endpoints: {"errorCode": 3, "message": "Failed - the domain appears to not
+        # exist in the dataset ..."} just means there is no data for that domain/group/date.
+        if str(data["errorCode"]) == "3":
+            return
+        raise AWRError(f"{data.get('message') or 'request failed'} (AWR errorCode {data['errorCode']})")
     code = data.get("response_code") if isinstance(data, dict) else None
     if code in (None, 0, "0"):
         return
@@ -393,7 +405,8 @@ def find_download_link(body: bytes) -> str | None:
 
 COLUMN_ALIASES = {
     "keyword": ["keyword", "keyword_name", "kw", "search term", "query"],
-    "position": ["position", "rank", "ranking", "pos", "position_value", "organic position"],
+    # "best position" is what /marketshare/.../domain-keywords returns
+    "position": ["position", "best position", "rank", "ranking", "pos", "position_value", "organic position"],
     "website": ["website", "website_name", "site", "domain", "website url"],
     "date": ["date", "ranking date", "day"],
     "engine": ["search engine", "search_engine", "searchengine", "engine", "search engine name"],

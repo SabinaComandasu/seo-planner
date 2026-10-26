@@ -28,6 +28,7 @@ LosingToCompetitor(K)  :- BeatenBy(K, C).
 OutrankedByAll(K)      :- Tracked(K), CompetitorRanking(K, _C, _Q), not BeatsSomeCompetitor(K).
 BeatsSomeCompetitor(K) :- Ranking(K, P), CompetitorRanking(K, C, Q), P < Q.
 RankingPageExists(K)   :- RankingUrl(K, U).
+RankingPageExists(K)   :- Ranking(K, P), P <= 100.     % some page of ours ranks (URL may be unknown)
 RankingPageExists(K)   :- HasLandingPage(K).
 
 % ---- When does a keyword need work? ---------------------------------------------
