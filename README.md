@@ -23,6 +23,15 @@ python -m seo_planner.web            # opens http://127.0.0.1:8765 in your brows
    - In the API mode, changing the dates later requires loading again.
 3. **Plan settings:** choose your website, the **keyword group**, how many keywords to plan, and the search algorithm. Pick *Compare all three* to run BFS, UCS and A* side by side. You can also tick specific keywords in the table to plan only those.
 
+**The Plan tab** shows the plan three ways:
+- **🗺️ Quests:** one card per keyword. Each card has a goal (e.g. *Break into the top 3*), a position track (you, your previous position, the competitors ahead of you, and the goal zone), and a checklist of steps with ⚡ effort points.
+- **📊 Timeline:** a Gantt-style chart. Each action is a block whose width is its effort, placed in the order the search chose. Hover a block for details; click it to mark it done.
+- **📋 Steps:** the plain ordered list.
+
+Ticked steps are remembered in your browser, and the mission bar tracks progress (🎉 when a keyword or the whole plan is done). With *Compare all three*, a bar chart shows how many states BFS, UCS and A* explored. Action colours are grouped as Research, Content, Technical and Measure; the palette is validated for colour-blind safety, and every action also has an icon.
+
+**Loading speed.** AWR has no single call for one keyword group across all websites, so the app makes one `domain-keywords` call per website and date. These calls run **in parallel** (8 at a time, with retries if AWR throttles) and are **cached**: in memory for the session, and on disk in `data/cache/` for dates before today, since a finished ranking update doesn't change. Reloading a group or date you've already seen therefore makes no API calls. Tick *Re-download from AWR (ignore cache)* in step 2 to force a fresh download. After each load, step 2 shows how long it took and how many requests came from the cache.
+
 The interface has four tabs:
 - **Keywords:** the classification derived by the rules.
 - **Plan:** each step with its cost and a "why is this action allowed?" proof. You can download the plan (.md) and the facts (.fol) from here.

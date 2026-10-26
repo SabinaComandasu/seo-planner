@@ -13,6 +13,7 @@ response is saved under data/raw/ so the mapping can be checked against a real a
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
 import os
@@ -21,8 +22,10 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import threading
 import zipfile
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -31,6 +34,7 @@ from .fol import Atom
 BASE_URL = "https://api.advancedwebranking.com/v3"
 API_HOST = urllib.parse.urlparse(BASE_URL).hostname
 RAW_DIR = Path(__file__).resolve().parent.parent / "data" / "raw"
+CACHE_DIR = Path(__file__).resolve().parent.parent / "data" / "cache"
 NOT_RANKING = 101
 
 
@@ -49,6 +53,10 @@ class AWRClient:
         self.base_url = (base_url or os.environ.get("AWR_API_BASE") or BASE_URL).rstrip("/")
         self.timeout = timeout
         self.save_raw = save_raw
+        self._cache: dict = {}
+        self._ms_projects = None
+        self._lock = threading.Lock()
+        self.api_calls = 0
 
     # ------------------------------------------------------------------ HTTP
     def _request(self, url: str) -> tuple[str, bytes]:
@@ -57,14 +65,20 @@ class AWRClient:
         if urllib.parse.urlparse(url).hostname == API_HOST:
             headers["Authorization"] = f"Bearer {self.token}"
         req = urllib.request.Request(url, headers=headers)
-        try:
-            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
-                return resp.headers.get("Content-Type", ""), resp.read()
-        except urllib.error.HTTPError as e:
-            body = e.read()[:500].decode("utf-8", "replace")
-            if e.code == 401:
-                raise AWRError("401 Unauthorized: check your AWR API token") from None
-            raise AWRError(f"HTTP {e.code} for {url}: {body}") from None
+        with self._lock:
+            self.api_calls += 1
+        for attempt in range(4):
+            try:
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    return resp.headers.get("Content-Type", ""), resp.read()
+            except urllib.error.HTTPError as e:
+                if e.code in (429, 502, 503, 504) and attempt < 3:   # throttled / busy: back off and retry
+                    time.sleep(1.5 * (attempt + 1))
+                    continue
+                body = e.read()[:500].decode("utf-8", "replace")
+                if e.code == 401:
+                    raise AWRError("401 Unauthorized: check your AWR API token") from None
+                raise AWRError(f"HTTP {e.code} for {url}: {body}") from None
 
     def _get(self, path: str, params: dict | None = None, tag: str = "response") -> tuple[str, bytes]:
         url = self.base_url + path
@@ -80,7 +94,7 @@ class AWRClient:
             return
         RAW_DIR.mkdir(parents=True, exist_ok=True)
         ext = ".zip" if body[:2] == b"PK" else ".json" if "json" in ctype else ".csv" if "csv" in ctype else ".txt"
-        name = re.sub(r"[^A-Za-z0-9_.-]", "_", f"{datetime.now():%Y%m%d-%H%M%S}-{tag}{ext}")
+        name = re.sub(r"[^A-Za-z0-9_.-]", "_", f"{datetime.now():%Y%m%d-%H%M%S-%f}-{tag}{ext}")
         (RAW_DIR / name).write_bytes(body)
 
     # ------------------------------------------------------------------ endpoints
@@ -160,7 +174,9 @@ class AWRClient:
             return rows_from_payload("text/csv", body) or []
 
     def ms_projects(self) -> list[dict]:
-        return [_id_name(r) for r in _records(self._json("/marketshare/projects", tag="ms-projects"))]
+        if self._ms_projects is None:
+            self._ms_projects = [_id_name(r) for r in _records(self._json("/marketshare/projects", tag="ms-projects"))]
+        return self._ms_projects
 
     def ms_project_id(self, project: str, fallback=None):
         for p in self.ms_projects():
@@ -198,8 +214,21 @@ class AWRClient:
         out = [w for w in out if "/" not in w.strip().rstrip("/").split("://")[-1]]
         return list(dict.fromkeys(out))
 
-    def domain_keywords(self, project_id, domain: str, date: str, group_id=-1, engine_id=-1) -> list[dict]:
-        """Keywords (with position and URL) on which `domain` was found on `date`."""
+    def domain_keywords(self, project_id, domain: str, date: str, group_id=-1, engine_id=-1,
+                        refresh: bool = False) -> list[dict]:
+        """Keywords (with best position) on which `domain` was found on `date`.
+
+        Cached in memory for the session, and on disk for dates before today: the rankings of a
+        finished update don't change, so loading them again costs no API calls.
+        """
+        key = (str(project_id), str(group_id), str(engine_id), date, domain)
+        if not refresh:
+            if key in self._cache:
+                return self._cache[key]
+            cached = self._disk_cache_read(key)
+            if cached is not None:
+                self._cache[key] = cached
+                return cached
         params = {"domain": domain, "date": date, "keywordGroupId": group_id, "searchEngineId": engine_id}
         ctype, body = self._get(f"/marketshare/projects/{_q(str(project_id))}/domain-keywords", params,
                                 tag=f"ms-domain-keywords-{domain}-{date}")
@@ -209,34 +238,64 @@ class AWRClient:
                 rows = [_flatten(r) for r in _records(json.loads(body)) if isinstance(r, dict)]
             except json.JSONDecodeError:
                 rows = []
+        self._cache[key] = rows
+        if date < datetime.now().strftime("%Y-%m-%d"):
+            self._disk_cache_write(key, rows)
         return rows
 
+    def _disk_cache_path(self, key) -> Path:
+        # account-specific (hash of the token, never the token itself) so accounts don't mix
+        account = hashlib.sha256(self.token.encode()).hexdigest()[:12]
+        name = re.sub(r"[^A-Za-z0-9_.-]", "_", "-".join(key))
+        return CACHE_DIR / account / f"{name}.json"
+
+    def _disk_cache_read(self, key):
+        try:
+            return json.loads(self._disk_cache_path(key).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+
+    def _disk_cache_write(self, key, rows):
+        try:
+            path = self._disk_cache_path(key)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(rows), encoding="utf-8")
+        except OSError:
+            pass
+
     def export_group_rankings(self, project_id, group: dict, dates: list[str], engine: dict | None = None,
-                              progress=None) -> list[dict]:
+                              refresh: bool = False, workers: int = 8) -> tuple[list[dict], dict]:
         """Ranking rows for one keyword group, in the same long format as the full export:
-        one row per (date, keyword, website). Websites come from /websites (main site + competitors)."""
+        one row per (date, keyword, website). Websites come from /websites (main site + competitors).
+
+        AWR has no single call for "this group, all websites", so this is one domain-keywords call
+        per website and date; they run in parallel and are cached. Returns (rows, stats).
+        """
         websites = self.ms_websites(project_id)
         if not websites:
             raise AWRError("the project has no websites in /marketshare/websites")
         engine_id = engine["id"] if engine else -1
+        jobs = [(date, site) for date in dates for site in websites]
+        calls_before = self.api_calls
+        start = time.perf_counter()
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            results = list(pool.map(
+                lambda j: self.domain_keywords(project_id, j[1], j[0], group["id"], engine_id, refresh), jobs))
         out = []
-        total, done = len(websites) * len(dates), 0
-        for date in dates:
-            for site in websites:
-                if progress:
-                    progress(done, total, f"{site} on {date}")
-                for r in self.domain_keywords(project_id, site, date, group["id"], engine_id):
-                    kcol, pcol = _col(r.keys(), "keyword"), _col(r.keys(), "position")
-                    if not kcol:
-                        raise AWRError(f"domain-keywords rows have no keyword column: {list(r.keys())}. "
-                                       "Add the column name to COLUMN_ALIASES in seo_planner/awr.py.")
-                    pos = r[pcol] if pcol else _nested_position(r)
-                    ucol = _col(r.keys(), "url")
-                    out.append({"Date": date, "Search Engine": engine["name"] if engine else "",
-                                "Keyword": r[kcol], "Keyword Group": group["name"], "Website": site,
-                                "Position": pos if pos is not None else "", "URL": r[ucol] if ucol else ""})
-                done += 1
-        return out
+        for (date, site), rows in zip(jobs, results):
+            for r in rows:
+                kcol, pcol = _col(r.keys(), "keyword"), _col(r.keys(), "position")
+                if not kcol:
+                    raise AWRError(f"domain-keywords rows have no keyword column: {list(r.keys())}. "
+                                   "Add the column name to COLUMN_ALIASES in seo_planner/awr.py.")
+                pos = r[pcol] if pcol else _nested_position(r)
+                ucol = _col(r.keys(), "url")
+                out.append({"Date": date, "Search Engine": engine["name"] if engine else "",
+                            "Keyword": r[kcol], "Keyword Group": group["name"], "Website": site,
+                            "Position": pos if pos is not None else "", "URL": r[ucol] if ucol else ""})
+        stats = {"requests": len(jobs), "api_calls": self.api_calls - calls_before,
+                 "seconds": round(time.perf_counter() - start, 1), "websites": len(websites)}
+        return out, stats
 
 
 def check_api_error(body: bytes) -> None:

@@ -120,7 +120,8 @@ def api_load(body):
         raise UserError("The comparison date must be before the ranking update date.")
     group_id = body.get("group_id")
     if group_id not in (None, ""):
-        return _load_group(client, project, str(group_id), body.get("engine_id"), current, previous)
+        return _load_group(client, project, str(group_id), body.get("engine_id"), current, previous,
+                           bool(body.get("refresh")))
     rows = client.export_rankings(project, start, current)
     if not rows:
         raise UserError("The export contained no ranking rows for these dates.")
@@ -144,7 +145,7 @@ def api_load(body):
     return _load_result(summary, current, previous)
 
 
-def _load_group(client, project, group_id, engine_id, current, previous):
+def _load_group(client, project, group_id, engine_id, current, previous, refresh=False):
     opts = SESSION.options.get(project) or api_project_options({"project": project})
     group = next((g for g in opts["groups"] if str(g["id"]) == group_id), None)
     if group is None:
@@ -154,7 +155,7 @@ def _load_group(client, project, group_id, engine_id, current, previous):
         raise UserError("Choose a search engine.")
     engine = engine or (opts["engines"][0] if opts["engines"] else None)
     dates = [current] + ([previous] if previous else [])
-    rows = client.export_group_rankings(SESSION.ms_ids[project], group, dates, engine)
+    rows, stats = client.export_group_rankings(SESSION.ms_ids[project], group, dates, engine, refresh=refresh)
     if not rows:
         raise UserError(f"No rankings found for group “{group['name']}” on these dates.")
     summary = awr.summarize_rows(rows)
@@ -165,7 +166,8 @@ def _load_group(client, project, group_id, engine_id, current, previous):
     main = next((p["main_website"] for p in SESSION.projects if p["name"] == project), "")
     return {**_load_result(summary, current, previous), "loaded_group": group["name"],
             "main_website": awr._domain(main) if main else "",
-            "note": "Only keywords where at least one tracked website ranks are returned for a group."}
+            "note": "Only keywords where at least one tracked website ranks are returned for a group.",
+            "stats": stats}
 
 
 def api_load_sample(body):
@@ -202,29 +204,30 @@ def api_analyze(body):
     kb = KnowledgeBase(rules)
     store = kb.closure(facts)
     group = body.get("group") or None
+    keywords = sorted(a[Var("K")] for a in kb.query("Tracked(K)", store))
+    table = [row for row in (_keyword_row(kb, store, k) for k in keywords) if not group or group in row["groups"]]
+    return {"info": info, "keywords": table}
+
+
+def _keyword_row(kb, store, k) -> dict:
+    """Facts and derived classifications of one keyword, for the UI."""
     has = lambda pred, *args: Atom(pred, args) in store
     first = lambda q: (kb.query(q, store) or [None])[0]
-    keywords = sorted(a[Var("K")] for a in kb.query("Tracked(K)", store))
-    table = []
-    for k in keywords:
-        groups = sorted(a[Var("G")] for a in kb.query(f"InGroup({fmt(k)}, G)", store))
-        if group and group not in groups:
-            continue
-        pos = first(f"Ranking({fmt(k)}, P)")
-        prev = first(f"PreviousRanking({fmt(k)}, P)")
-        comps = sorted(((a[Var("Q")], a[Var("C")]) for a in kb.query(f"CompetitorRanking({fmt(k)}, C, Q)", store)))
-        pr = first(f"Priority({fmt(k)}, P)")
-        flags = [f for f in ("Dropped", "Improving", "NotRanking", "StrikingDistance", "LosingToCompetitor",
-                             "OutrankedByAll", "InTop3", "Healthy") if has(f, k)]
-        table.append({
-            "keyword": k, "groups": groups,
-            "position": pos[Var("P")] if pos else None,
-            "previous": prev[Var("P")] if prev else None,
-            "competitor": {"site": comps[0][1], "position": comps[0][0]} if comps else None,
-            "needs": has("NeedsOptimization", k), "priority": pr[Var("P")] if pr else None,
-            "flags": flags,
-        })
-    return {"info": info, "keywords": table}
+    pos = first(f"Ranking({fmt(k)}, P)")
+    prev = first(f"PreviousRanking({fmt(k)}, P)")
+    comps = sorted(((a[Var("Q")], a[Var("C")]) for a in kb.query(f"CompetitorRanking({fmt(k)}, C, Q)", store)))
+    pr = first(f"Priority({fmt(k)}, P)")
+    flags = [f for f in ("Dropped", "Improving", "NotRanking", "StrikingDistance", "LosingToCompetitor",
+                         "OutrankedByAll", "InTop3", "Healthy") if has(f, k)]
+    return {
+        "keyword": k, "groups": sorted(a[Var("G")] for a in kb.query(f"InGroup({fmt(k)}, G)", store)),
+        "position": pos[Var("P")] if pos else None,
+        "previous": prev[Var("P")] if prev else None,
+        "competitor": {"site": comps[0][1], "position": comps[0][0]} if comps else None,
+        "rivals": [{"site": c, "position": q} for q, c in comps if pos and q < pos[Var("P")]][:3],
+        "needs": has("NeedsOptimization", k), "priority": pr[Var("P")] if pr else None,
+        "flags": flags,
+    }
 
 
 def api_plan(body):
@@ -252,7 +255,8 @@ def api_plan(body):
             steps.append({"action": repr(action), "name": action.schema.name, "keyword": action.args[0],
                           "cost": cost, "text": p.describe(action),
                           "because": [repr(l) for l in action.reasons]})
-    return {"info": info, "scope": p.scope, "algorithm": res.algorithm, "found": res.found,
+    details = {k: _keyword_row(p.kb, p.static, k) for k in p.scope}
+    return {"info": info, "scope": p.scope, "keywords": details, "algorithm": res.algorithm, "found": res.found,
             "reason": res.reason, "cost": res.cost, "steps": steps, "runs": runs}
 
 

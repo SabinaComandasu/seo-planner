@@ -6,11 +6,14 @@ URL entries among websites, domain-keywords as CSV with a "best position" column
 and {"errorCode": 3, ...} when a domain has no data.
 """
 import json
+import tempfile
 import threading
 import unittest
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
+from seo_planner import awr
 from seo_planner.awr import AWRClient, rows_to_facts
 from seo_planner.fol import Atom
 
@@ -69,6 +72,8 @@ class MockAWR(BaseHTTPRequestHandler):
 class TestGroupDownload(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        cls.tmp = tempfile.TemporaryDirectory()
+        cls._cache_dir, awr.CACHE_DIR = awr.CACHE_DIR, Path(cls.tmp.name)
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), MockAWR)
         threading.Thread(target=cls.server.serve_forever, daemon=True).start()
         cls.client = AWRClient("test-token", base_url=f"http://127.0.0.1:{cls.server.server_port}", save_raw=False)
@@ -76,6 +81,8 @@ class TestGroupDownload(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.server.shutdown()
+        awr.CACHE_DIR = cls._cache_dir
+        cls.tmp.cleanup()
 
     def test_options(self):
         pid = self.client.ms_project_id("shoe shop")
@@ -86,8 +93,8 @@ class TestGroupDownload(unittest.TestCase):
 
     def test_group_rows_to_facts(self):
         MockAWR.calls.clear()
-        rows = self.client.export_group_rankings("2", {"id": "5", "name": "Deals"}, ["2026-10-19", "2026-10-12"],
-                                                 {"id": "1", "name": "Google"})
+        rows, stats = self.client.export_group_rankings("2", {"id": "5", "name": "Deals"}, ["2026-10-19", "2026-10-12"],
+                                                        {"id": "1", "name": "Google"}, refresh=True)
         # only the group's keywords were requested: 2 websites x 2 dates, no full export
         paths = [p for p, _ in MockAWR.calls]
         self.assertEqual(paths.count("/marketshare/projects/2/domain-keywords"), 4)   # 2 domains x 2 dates
@@ -98,6 +105,12 @@ class TestGroupDownload(unittest.TestCase):
         self.assertIn(Atom("PreviousRanking", ("cheap running shoes", 18)), facts)
         self.assertIn(Atom("CompetitorRanking", ("cheap running shoes", "runfast.example", 12)), facts)
         self.assertIn(Atom("InGroup", ("running shoes sale", "Deals")), facts)
+        # loading the same group again is served from the cache: no new domain-keywords calls
+        MockAWR.calls.clear()
+        again, stats = self.client.export_group_rankings("2", {"id": "5", "name": "Deals"}, ["2026-10-19", "2026-10-12"],
+                                                         {"id": "1", "name": "Google"})
+        self.assertEqual(sorted(map(str, again)), sorted(map(str, rows)))
+        self.assertEqual([p for p, _ in MockAWR.calls if p.endswith("domain-keywords")], [])
 
 
 if __name__ == "__main__":

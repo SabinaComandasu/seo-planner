@@ -27,7 +27,8 @@ header h1 { font-size: 17px; margin: 0; }
 header .sub { color: var(--muted); font-size: 13px; }
 header .pill { margin-left: auto; }
 .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; padding: 20px 24px; align-items: start; }
-@media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 16px; } }
+.layout > * { min-width: 0; }   /* let wide tables scroll inside their box instead of widening the page */
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 16px; } header { flex-wrap: wrap; padding: 12px 16px; } header .pill { margin-left: 0; } }
 .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px; }
 .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
 .step { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; }
@@ -96,6 +97,85 @@ pre.proof { background: var(--panel-2); border-radius: 7px; padding: 10px; overf
 .spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 [hidden] { display: none !important; }
+
+/* ---------- visual plan ---------- */
+:root { --cat-1: #2a78d6; --cat-2: #eb6834; --cat-3: #1baf7a; --cat-4: #eda100; }   /* validated categorical slots 1-4 */
+@media (prefers-color-scheme: dark) { :root { --cat-1: #3987e5; --cat-2: #d95926; --cat-3: #199e70; --cat-4: #c98500; } }
+.cat-research { --cat: var(--cat-1); } .cat-content { --cat: var(--cat-2); }
+.cat-technical { --cat: var(--cat-3); } .cat-measure { --cat: var(--cat-4); }
+.mission { background: linear-gradient(135deg, var(--accent-soft), var(--panel) 75%); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
+.mission h3 { margin: 0; font-size: 18px; }
+.mission .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.mission .stats { display: flex; gap: 28px; flex-wrap: wrap; margin: 14px 0 12px; }
+.mission .stat b { font-size: 22px; display: block; line-height: 1.2; }
+.mission .stat span { color: var(--muted); font-size: 12px; }
+.progress { height: 10px; background: var(--panel-2); border-radius: 99px; overflow: hidden; }
+.progress > div { height: 100%; width: 0; background: var(--good); border-radius: 99px; transition: width .4s ease; }
+.progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 5px; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.seg button { border: none; border-radius: 0; padding: 7px 12px; background: var(--panel); }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button[aria-selected=true] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; background: var(--cat); }
+.quests { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 14px; }
+.quest { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: var(--shadow); transition: border-color .3s, box-shadow .3s; }
+.quest.done { border-color: var(--good); box-shadow: 0 0 0 3px var(--good-soft); }
+.quest-head { display: flex; gap: 10px; align-items: flex-start; }
+.quest-title { font-weight: 700; font-size: 15px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.quest-goal { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.prio { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; }
+.prio-1 { background: var(--bad-soft); color: var(--bad); } .prio-2 { background: var(--warn-soft); color: var(--warn); }
+.prio-3 { background: var(--panel-2); color: var(--muted); }
+.trophy { font-size: 13px; font-weight: 700; color: var(--good); }
+.race { position: relative; height: 62px; margin: 12px 14px 4px; }
+.race .track { position: absolute; left: 0; right: 0; top: 24px; height: 6px; background: var(--panel-2); border-radius: 99px; }
+.race .zone { position: absolute; top: 20px; height: 14px; border-radius: 4px; background: var(--good-soft); border: 1px dashed var(--good); }
+.race .zone-label { position: absolute; top: 2px; font-size: 10.5px; color: var(--good); font-weight: 600; white-space: nowrap; }
+.race .mk { position: absolute; transform: translateX(-50%); }
+.race .you { top: 14px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-weight: 700; font-size: 10.5px; display: grid; place-items: center; box-shadow: 0 0 0 3px var(--panel); z-index: 3; }
+.race .ghost { top: 19px; width: 16px; height: 16px; border-radius: 50%; border: 2px dashed var(--muted); background: var(--panel); z-index: 1; }
+.race .rival { top: 20px; width: 13px; height: 13px; transform: translateX(-50%) rotate(45deg); background: var(--bad); border-radius: 3px; box-shadow: 0 0 0 2px var(--panel); z-index: 2; }
+.race .tick { top: 44px; font-size: 10.5px; color: var(--muted); }
+.race-caption { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+.race-caption b { color: var(--text); font-weight: 600; }
+.qsteps { list-style: none; margin: 8px 0 0; padding: 0; }
+.qstep { border-top: 1px solid var(--border); padding: 8px 0; }
+.qstep label { display: flex; gap: 10px; align-items: center; margin: 0; font-size: 13px; color: var(--text); font-weight: 400; cursor: pointer; }
+.qstep input { flex: none; width: 16px; height: 16px; accent-color: var(--good); }
+.ico { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-size: 15px; background: color-mix(in srgb, var(--cat) 18%, var(--panel)); box-shadow: inset 0 0 0 1.5px var(--cat); }
+.qstep .txt { flex: 1; min-width: 0; }
+.qstep .txt b { font-weight: 600; }
+.qstep .txt .detail { display: block; color: var(--muted); font-size: 12px; }
+.qstep.done .txt b { text-decoration: line-through; color: var(--muted); }
+.qstep.done .ico { filter: grayscale(1); opacity: .6; }
+.pts { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.ord { flex: none; font-size: 11px; color: var(--muted); width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
+.qstep details { margin: 4px 0 0 66px; }
+.qstep summary { cursor: pointer; color: var(--muted); font-size: 11.5px; }
+.quest-foot { margin-top: 10px; }
+.gantt { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px 8px; overflow-x: auto; }
+.g-inner { min-width: 640px; }
+.g-row { display: grid; grid-template-columns: 180px 1fr; align-items: center; height: 38px; }
+.g-label { font-size: 12.5px; font-weight: 600; padding-right: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-lane { position: relative; height: 26px; border-left: 1px solid var(--border); }
+.g-lane::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed var(--border); }
+.g-block { position: absolute; top: 0; height: 26px; background: var(--cat); border-radius: 4px; display: grid; place-items: center; font-size: 13px; overflow: hidden; cursor: default; outline: 2px solid var(--panel); outline-offset: -1px; }
+.g-block.done { opacity: .35; }
+.g-block:hover { filter: brightness(1.12); z-index: 2; }
+.g-axis { display: grid; grid-template-columns: 180px 1fr; height: 26px; }
+.g-ticks { position: relative; border-top: 1px solid var(--border); }
+.g-ticks span { position: absolute; top: 4px; transform: translateX(-50%); font-size: 11px; color: var(--muted); }
+.g-title { font-size: 12px; color: var(--muted); margin: 0 0 8px; }
+.tooltip { position: fixed; z-index: 50; pointer-events: none; background: var(--text); color: var(--bg); font-size: 12px; padding: 7px 10px; border-radius: 7px; max-width: 320px; box-shadow: 0 4px 14px rgba(0,0,0,.2); display: none; }
+.insight { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; margin-bottom: 16px; }
+.insight h4 { margin: 0 0 10px; font-size: 13px; }
+.bar-row { display: grid; grid-template-columns: 54px 1fr 190px; gap: 10px; align-items: center; font-size: 12.5px; margin-bottom: 6px; }
+.bar-row .bar { height: 14px; background: var(--cat-1); border-radius: 0 4px 4px 0; min-width: 3px; }
+.bar-row .val { color: var(--muted); font-variant-numeric: tabular-nums; }
+.confetti { position: fixed; z-index: 60; pointer-events: none; font-size: 20px; animation: pop 1.3s ease-out forwards; }
+@keyframes pop { 0% { transform: translate(0, 0) rotate(0); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .confetti { display: none; } .progress > div { transition: none; } }
 </style>
 </head>
 <body>
@@ -151,7 +231,11 @@ pre.proof { background: var(--panel-2); border-radius: 7px; padding: 10px; overf
         </div>
       </div>
       <div class="hint" id="dateHint"></div>
-      <div class="actions" id="loadActions"><button class="primary" id="btnLoad">Load rankings</button></div>
+      <div id="loadActions">
+        <label class="check"><input type="checkbox" id="refresh"> Re-download from AWR (ignore cache)</label>
+        <div class="actions"><button class="primary" id="btnLoad">Load rankings</button></div>
+        <div class="hint" id="loadStats"></div>
+      </div>
     </section>
 
     <section class="card disabled" id="cardPlan">
@@ -218,16 +302,21 @@ pre.proof { background: var(--panel-2); border-radius: 7px; padding: 10px; overf
     <section data-panel="plan" hidden>
       <div id="planEmpty" class="empty">Choose your settings and click <b>Generate plan</b>.</div>
       <div id="planContent" hidden>
-        <div class="tiles" id="planTiles"></div>
-        <div id="compare"></div>
+        <div class="mission" id="mission"></div>
+        <div id="searchInsight"></div>
         <div class="toolbar">
-          <span class="hint" id="planCaption" style="margin:0"></span>
+          <div class="seg" role="tablist" aria-label="Plan view" id="planViews">
+            <button role="tab" data-view="cards" aria-selected="true">🗺️ Quests</button>
+            <button role="tab" data-view="timeline" aria-selected="false">📊 Timeline</button>
+            <button role="tab" data-view="list" aria-selected="false">📋 Steps</button>
+          </div>
           <span class="spacer"></span>
-          <label class="check" style="margin:0"><input type="checkbox" id="groupByKw" checked> Group by keyword</label>
+          <button id="btnResetDone" title="Untick all steps">Reset progress</button>
           <button id="btnDownloadPlan">Download plan (.md)</button>
           <button id="btnDownloadFacts">Download facts (.fol)</button>
         </div>
-        <div id="steps"></div>
+        <div class="legend" id="legend"></div>
+        <div id="planView"></div>
       </div>
     </section>
 
@@ -252,6 +341,7 @@ pre.proof { background: var(--panel-2); border-radius: 7px; padding: 10px; overf
   </main>
 </div>
 
+<div class="tooltip" id="tooltip" role="tooltip"></div>
 <div class="busy" id="busy"><span class="spinner"></span><span id="busyText">Working…</span></div>
 
 <script>
@@ -372,7 +462,7 @@ $("btnLoad").onclick = async () => {
   const group = $("loadGroup").value;
   if (!project || !current) return showError("Choose a project and a ranking update date.");
   if (!group) return showError("Choose a keyword group (or “All keywords”).");
-  const body = { project, current, previous };
+  const body = { project, current, previous, refresh: $("refresh").checked };
   if (group !== ALL) Object.assign(body, { group_id: group, engine_id: $("loadEngine").value });
   const label = group === ALL ? "Exporting the whole ranking update from AWR… (large projects can take a minute)"
     : `Downloading rankings for “${$("loadGroup").selectedOptions[0].text}”…`;
@@ -390,6 +480,8 @@ $("btnSample").onclick = async () => {
 };
 function afterLoad(r) {
   state.loaded = r; state.selected.clear();
+  const st = r.stats;
+  $("loadStats").textContent = st ? `Loaded in ${st.seconds}s · ${st.requests} requests (${st.websites} websites × ${st.requests / st.websites} dates), ${st.requests - st.api_calls} from cache.` : "";
   $("sourcePill").textContent = `${r.source} · ${r.keywords} keywords`;
   const prevSite = $("site").value;
   $("site").innerHTML = opt("", "Choose your website…") + r.websites.map(w => opt(w, w, w === prevSite)).join("");
@@ -480,39 +572,188 @@ $("btnPlan").onclick = async () => {
   const label = body.algorithm === "compare" ? "Running BFS, UCS and A*… (BFS/UCS can take a while)" : "Searching for a plan…";
   const r = await api("plan", body, label).catch(() => null);
   if (!r) return;
-  state.plan = r; renderPlan(); selectTab("plan");
+  state.plan = r; state.done = null; renderPlan(); selectTab("plan");
 };
-const ACTION_LABEL = { AuditPage: "Audit page", InvestigateDrop: "Investigate drop", AnalyzeCompetitors: "Analyse competitors",
-  OptimizeOnPage: "On-page optimisation", CloseContentGap: "Close content gap", RewriteContent: "Rewrite content",
-  CreateLandingPage: "Create landing page", PublishSupportingArticle: "Supporting article", AddInternalLinks: "Internal links",
-  ScheduleRecheck: "Re-check rankings" };
+const ACTIONS = {
+  AuditPage:                { label: "Audit page",           icon: "🔍", cat: "research" },
+  InvestigateDrop:          { label: "Investigate drop",     icon: "🕵️", cat: "research" },
+  AnalyzeCompetitors:       { label: "Scout competitors",    icon: "⚔️", cat: "research" },
+  OptimizeOnPage:           { label: "On-page tune-up",      icon: "🏷️", cat: "technical" },
+  CloseContentGap:          { label: "Close content gap",    icon: "🧩", cat: "content" },
+  RewriteContent:           { label: "Rewrite content",      icon: "✍️", cat: "content" },
+  CreateLandingPage:        { label: "Build landing page",   icon: "🏗️", cat: "content" },
+  PublishSupportingArticle: { label: "Supporting article",   icon: "📰", cat: "content" },
+  AddInternalLinks:         { label: "Internal links",       icon: "🔗", cat: "technical" },
+  ScheduleRecheck:          { label: "Re-check rankings",    icon: "📈", cat: "measure" },
+};
+const ACTION_LABEL = Object.fromEntries(Object.entries(ACTIONS).map(([k, v]) => [k, v.label]));
+const CATS = [["research", "🔍 Research"], ["content", "✍️ Content"], ["technical", "🔧 Technical"], ["measure", "📈 Measure"]];
+const actionOf = s => ACTIONS[s.name] || { label: s.name, icon: "•", cat: "research" };
+const splitText = t => { const i = t.indexOf(" ["); return i < 0 ? [t, ""] : [t.slice(0, i), t.slice(i + 2, -1)]; };
+let planView = "cards";
+
+// ---- progress (ticked steps), remembered per plan in this browser
+function planKey(p) {
+  let h = 0; const str = p.info.site + p.info.current_date + p.steps.map(s => s.action).join("|");
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return "seo-plan-done:" + h;
+}
+function loadDone(p) { try { return new Set(JSON.parse(localStorage.getItem(planKey(p)) || "[]")); } catch { return new Set(); } }
+function saveDone(p) { try { localStorage.setItem(planKey(p), JSON.stringify([...state.done])); } catch {} }
+
+function goalFor(k) {
+  const pos = k.position;
+  if (pos == null || pos > 100) return { target: 10, text: "Get it ranking on page 1" };
+  if (k.flags.includes("Dropped") && k.previous != null && k.previous < pos) return { target: Math.max(1, k.previous), text: `Win back #${k.previous}` };
+  if (pos > 10) return { target: 10, text: "Reach page 1 (top 10)" };
+  if (pos > 3) return { target: 3, text: "Break into the top 3" };
+  return { target: 1, text: "Take the #1 spot" };
+}
+const PRIO = { 1: ["prio-1", "🔥 Urgent"], 2: ["prio-2", "⭐ High"], 3: ["prio-3", "🌱 Normal"] };
+
+function raceHtml(k) {
+  // position track: #1 on the left, 30+ on the right
+  const MAX = 31, x = p => ((Math.min(p ?? MAX, MAX) - 1) / (MAX - 1) * 100).toFixed(2) + "%";
+  const g = goalFor(k);
+  const parts = [`<div class="track"></div>`,
+    `<div class="zone" style="left:0;width:calc(${x(g.target)} + 6px)"></div>`,
+    `<div class="zone-label" style="left:0">🏁 goal</div>`];
+  [[1, "#1"], [10, "#10"], [20, "#20"], [MAX, "30+"]].forEach(([p, l]) => parts.push(`<div class="mk tick" style="left:${x(p)}">${l}</div>`));
+  if (k.previous != null && k.previous !== k.position) parts.push(`<div class="mk ghost" style="left:${x(k.previous)}" title="Previous: ${esc(fmtPos(k.previous))}"></div>`);
+  (k.rivals || []).forEach(r => parts.push(`<div class="mk rival" style="left:${x(r.position)}" title="${esc(r.site)} #${r.position}"></div>`));
+  parts.push(`<div class="mk you" style="left:${x(k.position)}" title="You: ${esc(fmtPos(k.position))}">${k.position > 100 ? "–" : k.position}</div>`);
+  const rivals = (k.rivals || []).map(r => `${esc(r.site)} <b>#${r.position}</b>`).join(", ");
+  const moved = k.previous != null && k.previous !== k.position ? ` (was ${esc(fmtPos(k.previous))})` : "";
+  return `<div class="race" aria-hidden="true">${parts.join("")}</div>
+    <div class="race-caption">🔵 You <b>${esc(fmtPos(k.position))}</b>${moved}${rivals ? ` · ♦ ahead of you: ${rivals}` : ""}</div>`;
+}
+
+function stepRow(s, i) {
+  const a = actionOf(s), [main, detail] = splitText(s.text), done = state.done.has(i);
+  return `<li class="qstep cat-${a.cat}${done ? " done" : ""}">
+    <label><span class="ord">#${i + 1}</span><input type="checkbox" data-i="${i}" ${done ? "checked" : ""} aria-label="Mark step ${i + 1} done">
+      <span class="ico" aria-hidden="true">${a.icon}</span>
+      <span class="txt"><b>${esc(a.label)}</b><span class="detail">${esc(main)}${detail ? " · " + esc(detail) : ""}</span></span>
+      <span class="pts" title="Effort (cost)">⚡ ${s.cost}</span></label>
+    <details><summary>Why is this allowed?</summary><div class="because">${esc(s.action)}<br>because ${s.because.map(esc).join(" ∧ ")}</div></details></li>`;
+}
+
 function renderPlan() {
   const p = state.plan;
   $("planEmpty").hidden = true; $("planContent").hidden = false;
-  const shown = p.runs.find(r => r.algorithm === p.algorithm);
-  $("planTiles").innerHTML = [
-    [p.scope.length, "keywords planned"], [p.found ? p.steps.length : "–", "actions"],
-    [p.found ? p.cost : "–", "total effort (cost)"], [shown.expanded.toLocaleString(), `states expanded (${p.algorithm})`],
-  ].map(([n, l]) => `<div class="tile"><div class="n">${n}</div><div class="l">${esc(l)}</div></div>`).join("");
-  $("compare").innerHTML = p.runs.length > 1 ? `<div class="table-wrap" style="margin-bottom:16px"><table><thead><tr><th>Algorithm</th><th>Result</th><th class="num">Steps</th><th class="num">Cost</th><th class="num">Expanded</th><th class="num">Generated</th><th class="num">Time</th></tr></thead><tbody>${
-    p.runs.map(r => `<tr><td><b>${esc(r.algorithm)}</b></td><td>${r.found ? '<span class="chip c-good">plan found</span>' : `<span class="chip c-bad">${esc(r.reason)}</span>`}</td><td class="num">${r.steps ?? "–"}</td><td class="num">${r.cost ?? "–"}</td><td class="num">${r.expanded.toLocaleString()}</td><td class="num">${r.generated.toLocaleString()}</td><td class="num">${r.seconds}s</td></tr>`).join("")
-  }</tbody></table></div>` : "";
-  $("planCaption").textContent = p.found ? `${p.info.site} · ranking update ${p.info.current_date}` : "";
-  if (!p.found) { $("steps").innerHTML = `<div class="empty">No plan found: ${esc(p.reason)}. Try A*, fewer keywords, or priority order.</div>`; return; }
-  const split = t => { const i = t.indexOf(" ["); return i < 0 ? [t, ""] : [t.slice(0, i), t.slice(i + 2, -1)]; };
-  const stepHtml = (s, i) => `<li data-n="${i + 1}"><div class="top"><span class="chip c-info">${esc(ACTION_LABEL[s.name] || s.name)}</span>
-      <span class="name">${esc(split(s.text)[0])}${split(s.text)[1] ? ` <span class="detail">· ${esc(split(s.text)[1])}</span>` : ""}</span><span class="pill cost">cost ${s.cost}</span></div>
-      <details><summary>Why is this action allowed?</summary><div class="because">${esc(s.action)}<br>because ${s.because.map(esc).join(" ∧ ")}</div></details></li>`;
-  if ($("groupByKw").checked) {
-    const order = [...new Set(p.steps.map(s => s.keyword))];
-    $("steps").innerHTML = order.map(k => `<div class="group-head">${esc(k)}</div><ol class="steps">${
-      p.steps.map((s, i) => [s, i]).filter(([s]) => s.keyword === k).map(([s, i]) => stepHtml(s, i)).join("")}</ol>`).join("")
-      + `<div class="hint">Step numbers show the order found by the search.</div>`;
-  } else {
-    $("steps").innerHTML = `<ol class="steps">${p.steps.map(stepHtml).join("")}</ol>`;
+  state.done = state.done || loadDone(p);
+  const effort = p.steps.reduce((a, s) => a + s.cost, 0);
+  const doneEffort = p.steps.reduce((a, s, i) => a + (state.done.has(i) ? s.cost : 0), 0);
+  const pct = effort ? Math.round(doneEffort / effort * 100) : 0;
+  const groupName = $("group").value || $("group").selectedOptions[0]?.text || "";
+  $("mission").innerHTML = `<h3>🎯 Mission: ${esc(p.info.site)}</h3>
+    <div class="sub">Ranking update ${esc(p.info.current_date)}${p.info.previous_date ? ` vs ${esc(p.info.previous_date)}` : ""}${groupName && groupName !== "All keywords" ? ` · group ${esc(groupName)}` : ""} · plan found by ${esc(p.algorithm)}</div>
+    <div class="stats">
+      <div class="stat"><b>${p.scope.length}</b><span>🎯 keyword quests</span></div>
+      <div class="stat"><b>${p.found ? p.steps.length : "–"}</b><span>🧭 actions</span></div>
+      <div class="stat"><b>${p.found ? effort : "–"}</b><span>⚡ effort points</span></div>
+      <div class="stat"><b>${state.done.size}/${p.steps.length}</b><span>✅ steps done</span></div>
+    </div>
+    <div class="progress" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Plan progress"><div style="width:${pct}%"></div></div>
+    <div class="progress-label"><span>${pct === 100 ? "🏆 Mission complete! Re-check rankings in AWR to see the effect." : "Tick steps as you complete them"}</span><span>${pct}% of effort</span></div>`;
+  renderInsight(p);
+  $("legend").innerHTML = CATS.map(([c, l]) => `<span class="cat-${c}"><i></i>${l}</span>`).join("");
+  document.querySelectorAll("#planViews button").forEach(b => b.setAttribute("aria-selected", b.dataset.view === planView));
+  if (!p.found) { $("planView").innerHTML = `<div class="empty">No plan found: ${esc(p.reason)}. Try A*, fewer keywords, or priority order.</div>`; return; }
+  if (planView === "cards") renderQuests(p);
+  else if (planView === "timeline") renderTimeline(p);
+  else $("planView").innerHTML = `<ul class="qsteps card">${p.steps.map(stepRow).join("")}</ul>`;
+  $("planView").querySelectorAll("input[data-i]").forEach(cb => cb.onchange = () => toggleStep(+cb.dataset.i, cb.checked, cb));
+}
+
+function renderQuests(p) {
+  const order = [...new Set(p.steps.map(s => s.keyword))];
+  $("planView").innerHTML = `<div class="quests">${order.map(kw => {
+    const k = p.keywords[kw] || { keyword: kw, flags: [], rivals: [] };
+    const idx = p.steps.map((s, i) => i).filter(i => p.steps[i].keyword === kw);
+    const effort = idx.reduce((a, i) => a + p.steps[i].cost, 0);
+    const doneN = idx.filter(i => state.done.has(i)).length;
+    const pr = PRIO[k.priority] || PRIO[3], g = goalFor(k), complete = doneN === idx.length;
+    return `<article class="quest${complete ? " done" : ""}" data-kw="${esc(kw)}">
+      <div class="quest-head"><div class="quest-title">${esc(kw)}<div class="quest-goal">🏁 ${esc(g.text)}</div></div>
+        ${complete ? '<span class="trophy">🏆 Complete</span>' : `<span class="prio ${pr[0]}">${pr[1]}</span>`}</div>
+      ${raceHtml(k)}
+      <ul class="qsteps">${idx.map(i => stepRow(p.steps[i], i)).join("")}</ul>
+      <div class="quest-foot"><div class="progress"><div style="width:${idx.length ? doneN / idx.length * 100 : 0}%"></div></div>
+        <div class="progress-label"><span>${doneN}/${idx.length} steps</span><span>⚡ ${effort} effort</span></div></div>
+    </article>`; }).join("")}</div>`;
+}
+
+function renderTimeline(p) {
+  // Gantt: x = cumulative effort in the order the search found; one lane per keyword
+  const total = p.steps.reduce((a, s) => a + s.cost, 0);
+  let t = 0; const blocks = p.steps.map((s, i) => { const b = { s, i, start: t }; t += s.cost; return b; });
+  const lanes = [...new Set(p.steps.map(s => s.keyword))];
+  const pctX = v => (v / total * 100).toFixed(3) + "%";
+  const step = total > 60 ? 10 : 5, ticks = [];
+  for (let v = 0; v <= total; v += step) ticks.push(v);
+  $("planView").innerHTML = `<div class="gantt"><div class="g-inner">
+    <div class="g-title">Each block is one action, its width the effort; read left to right in the order the planner chose.</div>
+    ${lanes.map(kw => `<div class="g-row"><div class="g-label" title="${esc(kw)}">${esc(kw)}</div><div class="g-lane">${
+      blocks.filter(b => b.s.keyword === kw).map(b => { const a = actionOf(b.s);
+        return `<div class="g-block cat-${a.cat}${state.done.has(b.i) ? " done" : ""}" data-i="${b.i}" style="left:${pctX(b.start)};width:${pctX(b.s.cost)}" aria-label="${esc(a.label)}">${a.icon}</div>`; }).join("")
+    }</div></div>`).join("")}
+    <div class="g-axis"><div class="g-label" style="font-weight:400;color:var(--muted)">⚡ cumulative effort</div><div class="g-ticks">${
+      ticks.map(v => `<span style="left:${pctX(v)}">${v}</span>`).join("")}</div></div>
+  </div></div>`;
+  const tip = $("tooltip");
+  $("planView").querySelectorAll(".g-block").forEach(el => {
+    const s = p.steps[+el.dataset.i], a = actionOf(s), [main, detail] = splitText(s.text);
+    el.onmousemove = e => {
+      tip.innerHTML = `<b>#${+el.dataset.i + 1} ${a.icon} ${esc(a.label)}</b> · ⚡ ${s.cost}<br>${esc(main)}${detail ? `<br><span style="opacity:.75">${esc(detail)}</span>` : ""}`;
+      tip.style.display = "block";
+      tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
+      tip.style.top = (e.clientY + 14) + "px";
+    };
+    el.onmouseleave = () => tip.style.display = "none";
+    el.onclick = () => toggleStep(+el.dataset.i, !state.done.has(+el.dataset.i), el);
+  });
+}
+
+function renderInsight(p) {
+  if (p.runs.length < 2) {
+    const r = p.runs[0];
+    $("searchInsight").innerHTML = r ? `<div class="insight" style="font-size:13px">🤖 <b>${esc(r.algorithm)}</b> ${r.found ? `found this ${r.algorithm === "BFS" ? "shortest" : "cheapest"} plan after exploring <b>${r.expanded.toLocaleString()}</b> states in ${r.seconds}s.` : `stopped: ${esc(r.reason)}.`}</div>` : "";
+    return;
+  }
+  const max = Math.max(...p.runs.map(r => r.expanded));
+  $("searchInsight").innerHTML = `<div class="insight"><h4>🤖 How hard each search worked: states explored (fewer is better)</h4>${
+    p.runs.map(r => `<div class="bar-row"><b>${esc(r.algorithm)}</b><div class="bar" style="width:${(r.expanded / max * 100).toFixed(2)}%" title="${r.expanded.toLocaleString()} states"></div>
+      <span class="val">${r.expanded.toLocaleString()} states · ${r.found ? `${r.steps} steps, ⚡ ${r.cost}` : esc(r.reason)}</span></div>`).join("")
+  }</div>`;
+}
+
+function toggleStep(i, on, el) {
+  const p = state.plan, kw = p.steps[i].keyword;
+  const before = p.steps.every((s, j) => s.keyword !== kw || state.done.has(j));
+  on ? state.done.add(i) : state.done.delete(i);
+  saveDone(p);
+  const after = p.steps.every((s, j) => s.keyword !== kw || state.done.has(j));
+  const all = state.done.size === p.steps.length;
+  const rect = el.getBoundingClientRect();
+  renderPlan();
+  if (on && all) confetti(innerWidth / 2, innerHeight / 3, 60);
+  else if (on && after && !before) confetti(rect.left + rect.width / 2, rect.top, 26);
+}
+function confetti(x, y, n) {
+  const bits = ["🎉", "✨", "⭐", "🏆", "🎊", "📈"];
+  for (let k = 0; k < n; k++) {
+    const el = document.createElement("span");
+    el.className = "confetti"; el.textContent = bits[k % bits.length];
+    const ang = Math.random() * Math.PI * 2, dist = 80 + Math.random() * 160;
+    el.style.left = x + "px"; el.style.top = y + "px";
+    el.style.setProperty("--dx", Math.cos(ang) * dist + "px"); el.style.setProperty("--dy", Math.sin(ang) * dist + 60 + "px");
+    el.style.setProperty("--rot", (Math.random() * 720 - 360) + "deg");
+    document.body.appendChild(el); setTimeout(() => el.remove(), 1400);
   }
 }
-$("groupByKw").onchange = () => state.plan && renderPlan();
+document.querySelectorAll("#planViews button").forEach(b => b.onclick = () => { planView = b.dataset.view; if (state.plan) renderPlan(); });
+$("btnResetDone").onclick = () => { if (!state.plan) return; state.done = new Set(); saveDone(state.plan); renderPlan(); };
 
 function download(name, text, type) {
   const a = document.createElement("a");
@@ -525,7 +766,7 @@ $("btnDownloadPlan").onclick = () => {
     `- Ranking update: ${p.info.current_date}` + (p.info.previous_date ? ` (compared with ${p.info.previous_date})` : ""),
     `- Search engine: ${p.info.engine || "n/a"}`, `- Keyword group: ${$("group").value || "all"}`,
     `- Algorithm: ${p.algorithm} · ${p.steps.length} actions · total cost ${p.cost}`, "", "## Steps", ""];
-  p.steps.forEach((s, i) => lines.push(`${i + 1}. **${ACTION_LABEL[s.name] || s.name}** (cost ${s.cost}): ${s.text}  `, `   _because_ \`${s.because.join(" ∧ ")}\``));
+  p.steps.forEach((s, i) => lines.push(`- [${state.done?.has(i) ? "x" : " "}] ${i + 1}. ${actionOf(s).icon} **${ACTION_LABEL[s.name] || s.name}** (effort ${s.cost}): ${s.text}  `, `  _because_ \`${s.because.join(" ∧ ")}\``));
   download(`seo-plan-${p.info.site}-${p.info.current_date}.md`, lines.join("\n") + "\n", "text/markdown");
 };
 $("btnDownloadFacts").onclick = async () => {
@@ -565,7 +806,13 @@ if (location.hash.startsWith("#demo")) {
   (async () => {
     await $("btnSample").onclick();
     await new Promise(r => setTimeout(r, 300));
-    if (location.hash === "#demo-plan") $("btnPlan").click();
+    // #demo-plan, optionally with -timeline / -list (view) and -compare (run all three searches)
+    if (location.hash.startsWith("#demo-plan")) {
+      if (location.hash.includes("timeline")) planView = "timeline";
+      if (location.hash.includes("list")) planView = "list";
+      if (location.hash.includes("compare")) $("algorithm").value = "compare";
+      $("btnPlan").click();
+    }
   })();
 }
 </script>
