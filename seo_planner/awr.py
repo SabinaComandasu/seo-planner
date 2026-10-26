@@ -39,12 +39,14 @@ class AWRError(RuntimeError):
 
 
 class AWRClient:
-    def __init__(self, token: str | None = None, base_url: str = BASE_URL, timeout: int = 60,
+    def __init__(self, token: str | None = None, base_url: str | None = None, timeout: int = 60,
                  save_raw: bool = True):
         self.token = token or os.environ.get("AWR_API_TOKEN")
         if not self.token:
             raise AWRError("no API token: set the AWR_API_TOKEN environment variable or pass --token")
-        self.base_url = base_url.rstrip("/")
+        # AWR_API_BASE lets tests point the client at a mock server; the token is still only
+        # ever sent to the real API host (see _request).
+        self.base_url = (base_url or os.environ.get("AWR_API_BASE") or BASE_URL).rstrip("/")
         self.timeout = timeout
         self.save_raw = save_raw
 
@@ -146,6 +148,90 @@ class AWRClient:
                 stack.extend(v for v in cur.values() if isinstance(v, (list, dict)))
         return {k: v for k, v in mapping.items() if v}
 
+    # ------------------------------------------------------------------ market share (per keyword group)
+    # These endpoints take numeric project / group / search-engine ids and can be filtered by
+    # keyword group, so we can fetch one group without exporting the whole ranking update.
+
+    def _json(self, path: str, params: dict | None = None, tag: str = "response"):
+        _, body = self._get(path, params, tag=tag)
+        try:
+            return json.loads(body)
+        except json.JSONDecodeError:
+            return rows_from_payload("text/csv", body) or []
+
+    def ms_projects(self) -> list[dict]:
+        return [_id_name(r) for r in _records(self._json("/marketshare/projects", tag="ms-projects"))]
+
+    def ms_project_id(self, project: str, fallback=None):
+        for p in self.ms_projects():
+            if p["name"] and p["name"].strip().lower() == project.strip().lower():
+                return p["id"]
+        if fallback not in (None, ""):
+            return fallback
+        raise AWRError(f"project {project!r} not found in /marketshare/projects")
+
+    def ms_keyword_groups(self, project_id) -> list[dict]:
+        data = self._json(f"/marketshare/projects/{_q(str(project_id))}/keyword-groups", tag="ms-groups")
+        return [g for g in (_id_name(r) for r in _records(data)) if g["id"] not in (None, "")]
+
+    def ms_search_engines(self, project_id) -> list[dict]:
+        data = self._json(f"/marketshare/projects/{_q(str(project_id))}/search-engines", tag="ms-engines")
+        return [e for e in (_id_name(r, label_extra=True) for r in _records(data)) if e["id"] not in (None, "")]
+
+    def ms_websites(self, project_id) -> list[str]:
+        data = self._json(f"/marketshare/projects/{_q(str(project_id))}/websites", tag="ms-websites")
+        out = []
+        for r in _records(data, allow_scalars=True):
+            if isinstance(r, str):
+                out.append(r)
+            else:
+                rec = _flatten(r)
+                key = _col(rec.keys(), "website") or _col(rec.keys(), "url") or next(
+                    (k for k in rec if "name" in _norm(k)), None)
+                if key and rec[key]:
+                    out.append(str(rec[key]))
+        return list(dict.fromkeys(out))
+
+    def domain_keywords(self, project_id, domain: str, date: str, group_id=-1, engine_id=-1) -> list[dict]:
+        """Keywords (with position and URL) on which `domain` was found on `date`."""
+        params = {"domain": domain, "date": date, "keywordGroupId": group_id, "searchEngineId": engine_id}
+        ctype, body = self._get(f"/marketshare/projects/{_q(str(project_id))}/domain-keywords", params,
+                                tag=f"ms-domain-keywords-{domain}-{date}")
+        rows = rows_from_payload(ctype, body)
+        if rows is None:
+            try:
+                rows = [_flatten(r) for r in _records(json.loads(body)) if isinstance(r, dict)]
+            except json.JSONDecodeError:
+                rows = []
+        return rows
+
+    def export_group_rankings(self, project_id, group: dict, dates: list[str], engine: dict | None = None,
+                              progress=None) -> list[dict]:
+        """Ranking rows for one keyword group, in the same long format as the full export:
+        one row per (date, keyword, website). Websites come from /websites (main site + competitors)."""
+        websites = self.ms_websites(project_id)
+        if not websites:
+            raise AWRError("the project has no websites in /marketshare/websites")
+        engine_id = engine["id"] if engine else -1
+        out = []
+        total, done = len(websites) * len(dates), 0
+        for date in dates:
+            for site in websites:
+                if progress:
+                    progress(done, total, f"{site} on {date}")
+                for r in self.domain_keywords(project_id, site, date, group["id"], engine_id):
+                    kcol, pcol = _col(r.keys(), "keyword"), _col(r.keys(), "position")
+                    if not kcol:
+                        raise AWRError(f"domain-keywords rows have no keyword column: {list(r.keys())}. "
+                                       "Add the column name to COLUMN_ALIASES in seo_planner/awr.py.")
+                    pos = r[pcol] if pcol else _nested_position(r)
+                    ucol = _col(r.keys(), "url")
+                    out.append({"Date": date, "Search Engine": engine["name"] if engine else "",
+                                "Keyword": r[kcol], "Keyword Group": group["name"], "Website": site,
+                                "Position": pos if pos is not None else "", "URL": r[ucol] if ucol else ""})
+                done += 1
+        return out
+
 
 def check_api_error(body: bytes) -> None:
     """AWR reports failures as HTTP 200 with {"response_code": N, "message": "Failed - ..."}."""
@@ -167,6 +253,62 @@ def check_api_error(body: bytes) -> None:
 
 def _q(name: str) -> str:
     return urllib.parse.quote(name, safe="")
+
+
+def _records(data, allow_scalars: bool = False) -> list:
+    """The first list of objects found in a JSON document (breadth-first), e.g. data["groups"]."""
+    queue = [data]
+    while queue:
+        cur = queue.pop(0)
+        if isinstance(cur, list) and cur:
+            if all(isinstance(x, dict) for x in cur):
+                return cur
+            if allow_scalars and all(isinstance(x, (str, int)) for x in cur):
+                return cur
+            queue.extend(x for x in cur if isinstance(x, (list, dict)))
+        elif isinstance(cur, dict):
+            queue.extend(v for v in cur.values() if isinstance(v, (list, dict)))
+    return []
+
+
+_ID_KEYS = ("id", "projectid", "groupid", "keywordgroupid", "searchengineid", "seid", "engineid", "websiteid")
+_NAME_KEYS = ("name", "title", "groupname", "keywordgroupname", "projectname", "searchengine", "searchenginename",
+              "engine", "label")
+_EXTRA_KEYS = ("location", "country", "language", "device", "type")
+
+
+def _id_name(rec, label_extra: bool = False) -> dict:
+    """Pick the id and the display name out of an object whose field names we don't know exactly."""
+    if not isinstance(rec, dict):
+        return {"id": rec, "name": str(rec)}
+    flat = {re.sub(r"[^a-z]", "", k.lower()): v for k, v in _flatten(rec).items()}
+    ident = next((flat[k] for k in _ID_KEYS if flat.get(k) not in (None, "")), None)
+    name = next((flat[k] for k in _NAME_KEYS if isinstance(flat.get(k), str) and flat[k].strip()), None)
+    name = str(name if name is not None else ident)
+    if label_extra:
+        extra = [str(flat[k]) for k in _EXTRA_KEYS if isinstance(flat.get(k), (str, int)) and str(flat[k]).strip()
+                 and str(flat[k]) not in name]
+        if extra:
+            name += " (" + ", ".join(extra) + ")"
+    return {"id": ident, "name": name}
+
+
+def _nested_position(rec: dict):
+    """Best position found anywhere inside a record, for responses that nest rankings."""
+    best = None
+    stack = list(rec.values())
+    while stack:
+        cur = stack.pop()
+        if isinstance(cur, dict):
+            for k, v in cur.items():
+                if _norm(k) in ("position", "rank", "pos") and isinstance(v, (int, float, str)):
+                    p = _parse_position(v)
+                    best = p if best is None else min(best, p)
+                elif isinstance(v, (dict, list)):
+                    stack.append(v)
+        elif isinstance(cur, list):
+            stack.extend(cur)
+    return best
 
 
 # ---------------------------------------------------------------------- payload decoding

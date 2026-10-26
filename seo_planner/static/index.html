@@ -132,6 +132,13 @@ pre.proof { background: var(--panel-2); border-radius: 7px; padding: 10px; overf
       <div id="projectWrap">
         <label for="project">Project</label>
         <select id="project"></select>
+        <label for="loadGroup">Keyword group</label>
+        <select id="loadGroup" disabled><option>Choose a project first</option></select>
+        <div id="loadEngineWrap" hidden>
+          <label for="loadEngine">Search engine</label>
+          <select id="loadEngine"></select>
+        </div>
+        <div class="hint" id="loadGroupHint"></div>
       </div>
       <div class="grid2">
         <div>
@@ -307,14 +314,31 @@ $("btnDisconnect").onclick = async () => {
 };
 
 // ------------------------------------------------------------------ step 2: dates and rankings
+const ALL = "__all__";
 $("project").onchange = async () => {
   const project = $("project").value;
   $("current").innerHTML = $("previous").innerHTML = "";
+  $("loadGroup").innerHTML = opt("", "Choose a project first"); $("loadGroup").disabled = true;
+  $("loadEngineWrap").hidden = true; $("loadGroupHint").textContent = "";
   if (!project) return;
-  const r = await api("dates", { project }, "Loading ranking dates…").catch(() => null);
+  const r = await api("project-options", { project }, "Loading dates, keyword groups and search engines…").catch(() => null);
   if (!r) return;
   fillDates(r.dates);
+  $("loadGroup").innerHTML = (r.groups.length ? opt("", "Choose a keyword group…") : "")
+    + r.groups.map(g => opt(g.id, g.name)).join("") + opt(ALL, "All keywords (export the whole update)", !r.groups.length);
+  $("loadGroup").disabled = false;
+  $("loadEngine").innerHTML = r.engines.map(e => opt(e.id, e.name)).join("");
+  $("loadEngineWrap").hidden = r.engines.length <= 1;
+  $("loadGroupHint").textContent = r.groups_error ? `Keyword groups unavailable (${r.groups_error}); only the full export can be used.`
+    : r.groups.length ? `${r.groups.length} keyword groups. Only the chosen group is downloaded.` : "This project has no keyword groups.";
+  updateLoadEngine();
 };
+function updateLoadEngine() {
+  // the search engine choice applies to group loads; the full export contains all engines
+  const all = $("loadGroup").value === ALL;
+  $("loadEngineWrap").hidden = all || $("loadEngine").options.length <= 1;
+}
+$("loadGroup").onchange = updateLoadEngine;
 function fillDates(datesDesc, current, previous) {
   current = current || datesDesc[0];
   $("current").innerHTML = datesDesc.map(d => opt(d, d, d === current)).join("");
@@ -345,8 +369,14 @@ function datesChanged() { if (datesAvailable() && $("site").value) analyze(); }
 
 $("btnLoad").onclick = async () => {
   const project = $("project").value, current = $("current").value, previous = $("previous").value;
+  const group = $("loadGroup").value;
   if (!project || !current) return showError("Choose a project and a ranking update date.");
-  const r = await api("load", { project, current, previous }, "Exporting rankings from AWR… (large projects can take a minute)").catch(() => null);
+  if (!group) return showError("Choose a keyword group (or “All keywords”).");
+  const body = { project, current, previous };
+  if (group !== ALL) Object.assign(body, { group_id: group, engine_id: $("loadEngine").value });
+  const label = group === ALL ? "Exporting the whole ranking update from AWR… (large projects can take a minute)"
+    : `Downloading rankings for “${$("loadGroup").selectedOptions[0].text}”…`;
+  const r = await api("load", body, label).catch(() => null);
   if (r) afterLoad(r);
 };
 $("btnSample").onclick = async () => {
@@ -366,9 +396,14 @@ function afterLoad(r) {
   if (!$("site").value && r.source.startsWith("sample")) $("site").value = "shoeshop.example";
   $("engineWrap").hidden = r.engines.length <= 1;
   $("engine").innerHTML = r.engines.map(e => opt(e, e)).join("");
-  $("group").innerHTML = opt("", "All keywords") + r.groups.map(g => opt(g, g)).join("");
-  $("group").disabled = r.groups.length === 0;
-  $("groupHint").textContent = r.groups.length ? `${r.groups.length} groups · from ${r.group_source}` : `No keyword groups: ${r.group_source}.`;
+  if (r.loaded_group) {
+    $("group").innerHTML = opt("", r.loaded_group); $("group").disabled = true;
+    $("groupHint").textContent = `Only this group was downloaded. ${r.note || ""}`;
+  } else {
+    $("group").innerHTML = opt("", "All keywords") + r.groups.map(g => opt(g, g)).join("");
+    $("group").disabled = r.groups.length === 0;
+    $("groupHint").textContent = r.groups.length ? `${r.groups.length} groups · from ${r.group_source}` : `No keyword groups: ${r.group_source}.`;
+  }
   $("cardPlan").classList.remove("disabled");
   updateDateHint();
   if ($("site").value) analyze(); else selectTab("keywords");

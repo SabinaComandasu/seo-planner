@@ -39,6 +39,8 @@ class Session:
         self.group_source = ""
         self.facts: list[Atom] = []
         self.info: dict = {}
+        self.ms_ids: dict = {}        # project name -> market-share project id
+        self.options: dict = {}       # project name -> dates / groups / engines
 
     def require_client(self) -> awr.AWRClient:
         if self.client is None:
@@ -76,6 +78,7 @@ def api_connect(body):
 def api_disconnect(body):
     with SESSION.lock:
         SESSION.client, SESSION.projects = None, []
+        SESSION.ms_ids, SESSION.options = {}, {}
     return {"ok": True}
 
 
@@ -87,13 +90,36 @@ def api_dates(body):
     return {"dates": sorted(dates, reverse=True)}
 
 
+def api_project_options(body):
+    """Ranking dates, keyword groups and search engines of a project."""
+    client = SESSION.require_client()
+    project = body["project"]
+    out = api_dates(body)
+    out.update(groups=[], engines=[], groups_error="")
+    fallback = next((p["id"] for p in SESSION.projects if p["name"] == project), None)
+    try:
+        pid = client.ms_project_id(project, fallback)
+        out["groups"] = sorted(client.ms_keyword_groups(pid), key=lambda g: str(g["name"]).lower())
+        out["engines"] = client.ms_search_engines(pid)
+    except awr.AWRError as e:
+        out["groups_error"] = str(e)
+        pid = fallback
+    with SESSION.lock:
+        SESSION.ms_ids[project] = pid
+        SESSION.options[project] = out
+    return out
+
+
 def api_load(body):
-    """Export rankings for [previous, current] and remember the rows."""
+    """Fetch rankings for the chosen dates: one keyword group, or the full export."""
     client = SESSION.require_client()
     project, current, previous = body["project"], body["current"], body.get("previous") or None
     start = previous or current
     if start > current:
         raise UserError("The comparison date must be before the ranking update date.")
+    group_id = body.get("group_id")
+    if group_id not in (None, ""):
+        return _load_group(client, project, str(group_id), body.get("engine_id"), current, previous)
     rows = client.export_rankings(project, start, current)
     if not rows:
         raise UserError("The export contained no ranking rows for these dates.")
@@ -115,6 +141,28 @@ def api_load(body):
         SESSION.rows, SESSION.source = rows, f"AWR project “{project}”"
         SESSION.group_source = group_source
     return _load_result(summary, current, previous)
+
+
+def _load_group(client, project, group_id, engine_id, current, previous):
+    opts = SESSION.options.get(project) or api_project_options({"project": project})
+    group = next((g for g in opts["groups"] if str(g["id"]) == group_id), None)
+    if group is None:
+        raise UserError("Unknown keyword group; reload the project.")
+    engine = next((e for e in opts["engines"] if str(e["id"]) == str(engine_id)), None)
+    if engine is None and len(opts["engines"]) > 1:
+        raise UserError("Choose a search engine.")
+    engine = engine or (opts["engines"][0] if opts["engines"] else None)
+    dates = [current] + ([previous] if previous else [])
+    rows = client.export_group_rankings(SESSION.ms_ids[project], group, dates, engine)
+    if not rows:
+        raise UserError(f"No rankings found for group “{group['name']}” on these dates.")
+    summary = awr.summarize_rows(rows)
+    with SESSION.lock:
+        SESSION.rows = rows
+        SESSION.source = f"AWR “{project}” · group “{group['name']}”"
+        SESSION.group_source = "keyword group chosen when loading"
+    return {**_load_result(summary, current, previous), "loaded_group": group["name"],
+            "note": "Only keywords where at least one tracked website ranks are returned for a group."}
 
 
 def api_load_sample(body):
@@ -244,7 +292,8 @@ def api_facts(body):
     return {"text": "\n".join(lines + [f"{f!r}." for f in SESSION.facts]) + "\n"}
 
 
-ROUTES = {"connect": api_connect, "disconnect": api_disconnect, "dates": api_dates, "load": api_load,
+ROUTES = {"connect": api_connect, "disconnect": api_disconnect, "dates": api_dates,
+          "project-options": api_project_options, "load": api_load,
           "load-sample": api_load_sample, "analyze": api_analyze, "plan": api_plan, "query": api_query,
           "rules": api_rules, "facts": api_facts}
 

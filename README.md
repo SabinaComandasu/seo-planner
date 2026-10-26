@@ -31,7 +31,19 @@ The interface has four tabs:
 
 `http://127.0.0.1:8765/#demo-plan` loads the sample data and generates a plan in one go, which is handy for a presentation.
 
-**Keyword groups.** The AWR `export-rankings` endpoint has no group filter. Groups are read from a keyword-group column in the export if there is one. Otherwise the app tries the project-keywords endpoint (`GET /projects/{id}/keywords`). Groups become `InGroup(K, G)` facts, and the planner's scope query becomes `NeedsOptimization(K), InGroup(K, G)`. The UI shows which of these sources it used.
+**Keyword groups.** In step 2 you pick a keyword group *before* loading, and only that group is downloaded. The AWR `export-rankings` endpoint has no group filter, so for a single group the app uses the Market Share endpoints instead:
+
+| Endpoint | Used for |
+|---|---|
+| `GET /marketshare/projects` | the numeric project id |
+| `GET /marketshare/projects/{id}/keyword-groups` | the group list |
+| `GET /marketshare/projects/{id}/search-engines` | the search engine list |
+| `GET /marketshare/projects/{id}/websites` | your site and the competitors |
+| `GET /marketshare/projects/{id}/domain-keywords?domain=&date=&keywordGroupId=&searchEngineId=` | positions and URLs; one call per website per date |
+
+That's 2 × (number of websites) small calls instead of a full export. Limitation: `domain-keywords` only lists keywords on which a website was found, so a keyword where *none* of the tracked websites rank doesn't appear.
+
+Choosing **All keywords** uses the full `export-rankings` export. In that case, groups are read from its keyword-group column, or from `GET /projects/{id}/keywords`. Either way, groups become `InGroup(K, G)` facts, and the planner's scope query becomes `NeedsOptimization(K), InGroup(K, G)`.
 
 **Errors.** AWR reports some errors as HTTP 200 with a body such as `{"response_code": 11, "message": "Failed - invalid token"}`. The client turns these into readable errors.
 
@@ -39,7 +51,7 @@ The interface has four tabs:
 
 ```powershell
 cd seo-planner
-python -m unittest discover -s tests -t .                                      # 50 tests
+python -m unittest discover -s tests -t .                                      # 52 tests
 
 # offline, using the bundled sample data (fictional .example domains)
 python -m seo_planner import data/sample_awr_export.csv --site shoeshop.example --out knowledge_base/facts_sample.fol
