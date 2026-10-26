@@ -3,6 +3,8 @@
 %
 %  H :- B1, ..., Bn.   reads   forall vars ( B1 and ... and Bn -> H )
 %  "not B" is negation-as-failure (closed-world assumption).
+%  A line starting with "%%" is the plain-English description of the rule below it
+%  (shown in the web interface).
 %
 %  Base facts are generated from Advanced Web Ranking data (see facts_*.fol):
 %    Tracked(K)                  keyword K is tracked in the AWR project
@@ -10,6 +12,7 @@
 %    PreviousRanking(K, P)       our position at the start of the compared period
 %    CompetitorRanking(K, C, P)  best position of competitor website C for K
 %    RankingUrl(K, U)            our page that ranks for K
+%    InGroup(K, G)               K belongs to AWR keyword group G
 %
 %  Fluents (facts added by planner actions):
 %    Audited(K), DropInvestigated(K), CompetitorsAnalyzed(K), OnPageOptimized(K),
@@ -17,46 +20,77 @@
 % ============================================================================
 
 % ---- Classification of keywords ------------------------------------------------
+%% A keyword is in the top 3 if we rank #1, #2 or #3 for it.
 InTop3(K)              :- Ranking(K, P), P <= 3.
+%% A keyword is on page 1 if we rank somewhere in #1-#10.
 FirstPage(K)           :- Ranking(K, P), P <= 10.
+%% "Striking distance": we rank #4-#20, close enough that a little work can move it up.
 StrikingDistance(K)    :- Ranking(K, P), P >= 4, P <= 20.
+%% We count a keyword as not ranking when we are below #50 (or not found at all).
 NotRanking(K)          :- Ranking(K, P), P > 50.
+%% A keyword dropped if it fell 5 or more positions since the previous update.
 Dropped(K)             :- Ranking(K, P), PreviousRanking(K, P0), D is P - P0, D >= 5.
+%% A keyword is improving if it climbed 5 or more positions since the previous update.
 Improving(K)           :- Ranking(K, P), PreviousRanking(K, P0), D is P0 - P, D >= 5.
+%% Competitor C beats us on a keyword if C ranks higher (a smaller number) than we do.
 BeatenBy(K, C)         :- Ranking(K, P), CompetitorRanking(K, C, Q), Q < P.
+%% We are losing on a keyword if at least one competitor beats us on it.
 LosingToCompetitor(K)  :- BeatenBy(K, C).
+%% Every competitor that ranks for this keyword is above us (we beat none of them).
 OutrankedByAll(K)      :- Tracked(K), CompetitorRanking(K, _C, _Q), not BeatsSomeCompetitor(K).
+%% We beat at least one competitor on this keyword.
 BeatsSomeCompetitor(K) :- Ranking(K, P), CompetitorRanking(K, C, Q), P < Q.
+%% We have a page for the keyword if AWR shows our ranking URL...
 RankingPageExists(K)   :- RankingUrl(K, U).
-RankingPageExists(K)   :- Ranking(K, P), P <= 100.     % some page of ours ranks (URL may be unknown)
+%% ...or if we rank at all (some page of ours must be ranking, even if the URL is unknown)...
+RankingPageExists(K)   :- Ranking(K, P), P <= 100.
+%% ...or once the plan has built a landing page for it.
 RankingPageExists(K)   :- HasLandingPage(K).
 
 % ---- When does a keyword need work? ---------------------------------------------
+%% Anything outside page 1 (below #10) needs work.
 NeedsOptimization(K)   :- Ranking(K, P), P > 10.
+%% A keyword that dropped needs work, wherever it is now.
 NeedsOptimization(K)   :- Dropped(K).
+%% A keyword close to the top that a competitor is beating needs work.
 NeedsOptimization(K)   :- StrikingDistance(K), LosingToCompetitor(K).
+%% A tracked keyword is healthy when none of the "needs work" rules apply.
 Healthy(K)             :- Tracked(K), not NeedsOptimization(K).
 
 % ---- Prioritisation (1 = most urgent) -------------------------------------------
+%% A keyword is urgent if it needs work because it dropped.
 Urgent(K)              :- NeedsOptimization(K), Dropped(K).
+%% Urgent keywords get priority 1.
 Priority(K, 1)         :- Urgent(K).
+%% Non-urgent keywords in striking distance get priority 2 (quick wins).
 Priority(K, 2)         :- NeedsOptimization(K), not Urgent(K), StrikingDistance(K).
+%% Everything else that needs work gets priority 3.
 Priority(K, 3)         :- NeedsOptimization(K), not Urgent(K), not StrikingDistance(K).
-% total order: lower priority number first, ties broken alphabetically
+%% Keyword J comes before K if J has a more urgent priority number...
 HigherPriority(J, K)   :- Priority(J, A), Priority(K, B), A < B.
+%% ...and with equal priority, alphabetical order breaks the tie.
 HigherPriority(J, K)   :- Priority(J, A), Priority(K, A), J < K.
 
 % ---- Planning-state rules (depend on fluents) -----------------------------------
+%% A keyword's page counts as improved after an on-page tune-up...
 Improved(K)            :- OnPageOptimized(K).
+%% ...or after its content was improved...
 Improved(K)            :- ContentImproved(K).
+%% ...or once it has a new landing page.
 Improved(K)            :- HasLandingPage(K).
+%% If the keyword did not drop, there is no drop to investigate.
 DropHandled(K)         :- NeedsOptimization(K), not Dropped(K).
+%% If it dropped, the drop is handled once it has been investigated.
 DropHandled(K)         :- DropInvestigated(K).
+%% If no competitor beats us, there is no gap to close.
 GapHandled(K)          :- NeedsOptimization(K), not LosingToCompetitor(K).
+%% If competitors beat us, the gap is handled once we studied them AND improved our content.
 GapHandled(K)          :- CompetitorsAnalyzed(K), ContentImproved(K).
+%% A keyword is fully addressed when its page is improved, internally linked, and any drop and competitor gap are handled.
 Addressed(K)           :- Improved(K), InternalLinksAdded(K), DropHandled(K), GapHandled(K).
-% strict-priority policy: a keyword is blocked while a more urgent in-scope keyword is open
+%% Work priority: don't start a keyword while a more urgent keyword in the plan is still unfinished.
 Blocked(K)             :- HigherPriority(J, K), InScope(J), not Addressed(J).
 
 % ---- Goal -----------------------------------------------------------------------
+%% A planned keyword is done once a ranking re-check has been scheduled for it.
 Done(K)                :- InScope(K), Rechecked(K).

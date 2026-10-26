@@ -32,6 +32,10 @@ Ticked steps are remembered in your browser, and the mission bar tracks progress
 
 **Loading speed.** AWR has no single call for one keyword group across all websites, so the app makes one `domain-keywords` call per website and date. These calls run **in parallel** (8 at a time, with retries if AWR throttles) and are **cached**: in memory for the session, and on disk in `data/cache/` for dates before today, since a finished ranking update doesn't change. Reloading a group or date you've already seen therefore makes no API calls. Tick *Re-download from AWR (ignore cache)* in step 2 to force a fresh download. After each load, step 2 shows how long it took and how many requests came from the cache.
 
+**Plain-English explanations.**
+- Each rule in `seo_rules.fol` has a `%%` comment line above it describing it in plain words. The **Rules** tab shows that description next to the logic, plus a short guide to facts, rules, variables, “not” and strata (layers).
+- The **Query** tab offers ready-made questions. Answers read as sentences, and *Why is this true?* opens a proof tree (📄 AWR data, 🧠 rule, 🧮 calculation, 🚫 not provable). The command line's `query --why` prints the same tree as text.
+
 The interface has four tabs:
 - **Keywords:** the classification derived by the rules.
 - **Plan:** each step with its cost and a "why is this action allowed?" proof. You can download the plan (.md) and the facts (.fol) from here.
@@ -60,7 +64,7 @@ Choosing **All keywords** uses the full `export-rankings` export. In that case, 
 
 ```powershell
 cd seo-planner
-python -m unittest discover -s tests -t .                                      # 52 tests
+python -m unittest discover -s tests -t .                                      # 58 tests
 
 # offline, using the bundled sample data (fictional .example domains)
 python -m seo_planner import data/sample_awr_export.csv --site shoeshop.example --out knowledge_base/facts_sample.fol

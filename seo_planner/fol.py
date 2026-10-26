@@ -13,7 +13,7 @@ where "not" is negation-as-failure under the closed-world assumption.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterable, Iterator, Union
 
 
@@ -229,6 +229,7 @@ class FactStore:
 class Rule:
     head: Atom
     body: tuple  # of Literal
+    doc: str = field(default="", compare=False)   # plain-English description (the "%%" line above it)
 
     def __repr__(self) -> str:
         return f"{self.head!r} :- {', '.join(map(repr, self.body))}."
@@ -482,10 +483,21 @@ def parse_body(text: str) -> tuple:
 
 
 def parse_program(text: str) -> tuple[list[Atom], list[Rule]]:
-    """Parse a .fol file: clauses end with '.', comments start with '%' or '#'."""
+    """Parse a .fol file: clauses end with '.', comments start with '%' or '#'.
+    A comment line starting with '%%' describes the clause that follows it in plain English."""
     facts, rules = [], []
-    clean = "\n".join(_strip_comment(line) for line in text.splitlines())
-    for clause in _split_clauses(clean):
+    lines = []
+    for line in text.splitlines():
+        if line.lstrip().startswith("%%"):
+            # wrap the description in _DOC markers so it survives comment stripping and clause splitting
+            lines.append(_DOC + line.lstrip()[2:].strip().replace(_DOC, "") + _DOC)
+        else:
+            lines.append(_strip_comment(line))
+    for clause in _split_clauses("\n".join(lines)):
+        docs = re.findall(_DOC + "(.*?)" + _DOC, clause, re.S)
+        clause = re.sub(_DOC + ".*?" + _DOC, "", clause, flags=re.S).strip()
+        if not clause:
+            continue
         p = _Parser(clause)
         head = p.literal()
         if not isinstance(head, Atom) or head.pred in BUILTINS:
@@ -496,10 +508,13 @@ def parse_program(text: str) -> tuple[list[Atom], list[Rule]]:
             facts.append(head)
             continue
         p.take(":-")
-        rules.append(Rule(head, p.body()))
+        rules.append(Rule(head, p.body(), " ".join(docs)))
         if not p.done():
             raise SyntaxError(f"trailing input in {clause!r}")
     return facts, rules
+
+
+_DOC = "\x00"   # delimits a "%%" description inside the program text while parsing
 
 
 def _strip_comment(line: str) -> str:
@@ -523,9 +538,13 @@ def _split_clauses(text: str) -> list[str]:
     """Split on '.' that ends a clause (not inside quotes and not a decimal point)."""
     clauses, cur, quote = [], [], None
     for i, ch in enumerate(text):
+        if ch == _DOC and quote in (None, _DOC):   # descriptions behave like quoted text
+            quote = None if quote == _DOC else _DOC
+            cur.append(ch)
+            continue
         if quote:
             cur.append(ch)
-            if ch == quote and text[i - 1] != "\\":
+            if ch == quote and quote != _DOC and text[i - 1] != "\\":
                 quote = None
             continue
         if ch in "'\"":

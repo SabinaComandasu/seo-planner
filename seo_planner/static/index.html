@@ -90,8 +90,36 @@ code, .mono { font-family: var(--mono); font-size: 12.5px; }
 .toolbar .spacer { flex: 1; }
 pre.proof { background: var(--panel-2); border-radius: 7px; padding: 10px; overflow-x: auto; font-size: 12px; margin: 6px 0 0; }
 .answer { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; margin-bottom: 6px; }
-.rule { font-family: var(--mono); font-size: 12.5px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+.rule { padding: 9px 0; border-bottom: 1px solid var(--border); }
 .rule:last-child { border-bottom: none; }
+.rule-doc { font-size: 13.5px; }
+.rule-logic { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-top: 3px; overflow-wrap: anywhere; }
+.panel-title { margin: 0 0 6px; font-size: 16px; }
+.explain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+.explain-grid h4 { margin: 0 0 4px; font-size: 13.5px; }
+.explain-grid p { margin: 0; font-size: 13px; color: var(--muted); }
+.explain-grid code, .help code { color: var(--text); background: var(--panel-2); padding: 1px 5px; border-radius: 4px; }
+.questions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.question { border-radius: 99px; padding: 7px 13px; font-size: 13px; background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.question:hover { background: var(--accent-soft); filter: brightness(1.08); }
+.help summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+.help-body { font-size: 13px; color: var(--muted); margin: 8px 0 10px; }
+.help-body ul { padding-left: 18px; margin: 6px 0; } .help-body li { margin: 3px 0; } .help-body p { margin: 4px 0; }
+.answer-text { font-size: 14px; font-weight: 500; }
+.answer-text .and { color: var(--muted); font-weight: 400; }
+.answer details { margin-top: 6px; } .answer summary { cursor: pointer; color: var(--accent); font-size: 12.5px; }
+.answer .logic { margin-top: 4px; }
+ul.proof { list-style: none; margin: 6px 0 0; padding: 0 0 0 4px; }
+ul.proof ul.proof { border-left: 2px solid var(--border); margin-left: 9px; padding-left: 12px; }
+.pf { display: flex; gap: 8px; padding: 4px 0; font-size: 13px; }
+.pf-icon { flex: none; width: 20px; text-align: center; }
+.pf .note { color: var(--muted); font-size: 11.5px; margin-left: 4px; }
+.pf-rule > div > div:first-child { font-weight: 600; }
+.because-word { color: var(--muted); font-size: 11.5px; margin-top: 2px; text-transform: uppercase; letter-spacing: .04em; }
+.logic { display: none; font-family: var(--mono); font-size: 11.5px; color: var(--muted); overflow-wrap: anywhere; }
+.answer .logic:has(.chip) { display: block; }
+.show-logic .logic { display: block; }
+.why-list { margin: 6px 0 4px; padding-left: 18px; font-size: 12.5px; }
 .error { background: var(--bad-soft); color: var(--bad); border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; display: none; }
 .busy { position: fixed; inset: auto 24px 24px auto; background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 8px; display: none; align-items: center; gap: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
 .spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
@@ -322,20 +350,49 @@ pre.proof { background: var(--panel-2); border-radius: 7px; padding: 10px; overf
 
     <section data-panel="query" hidden>
       <div class="card">
-        <label for="goal" style="margin-top:0">FOL query (variables start with an uppercase letter)</label>
-        <div class="row">
-          <input type="text" id="goal" class="mono" spellcheck="false" value="NeedsOptimization(K), BeatenBy(K, C)">
-          <button class="primary" id="btnQuery" style="flex:none">Ask</button>
-        </div>
-        <label class="check"><input type="checkbox" id="why"> Show proof for each answer</label>
-        <div class="toolbar" style="margin:10px 0 0" id="examples"></div>
+        <h3 class="panel-title">💬 Ask the knowledge base</h3>
+        <p class="hint" style="margin:0 0 10px">Pick a question. The answer shows what is true and, if you want, <b>why</b>: which AWR data and which rules lead to it.</p>
+        <div class="questions" id="questions"></div>
+        <details class="help">
+          <summary>✏️ Write your own question in logic</summary>
+          <div class="help-body">
+            <p>A question is a list of conditions separated by commas (a comma means <b>and</b>). The app finds every way to make them all true.</p>
+            <ul>
+              <li><code>NeedsOptimization(K)</code>: which keywords <b>K</b> need work? Words starting with a <b>capital letter</b> are blanks to fill in.</li>
+              <li><code>BeatenBy(K, C)</code>: which competitor <b>C</b> beats us on keyword <b>K</b>?</li>
+              <li><code>not Dropped(K)</code>: K did <b>not</b> drop.</li>
+              <li><code>Ranking(K, P), P &lt; 4</code>: compare numbers with <code>&lt; &gt; &lt;= &gt;=</code>; calculate with <code>D is P - P0</code>.</li>
+              <li><code>Priority('banana bread', P)</code>: put real keywords in quotes.</li>
+            </ul>
+            <p>All the words you can use are listed in the <b>Rules</b> tab.</p>
+          </div>
+          <div class="row">
+            <input type="text" id="goal" class="mono" spellcheck="false" value="NeedsOptimization(K), BeatenBy(K, C)" aria-label="Logic query">
+            <button class="primary" id="btnQuery" style="flex:none">Ask</button>
+          </div>
+        </details>
+      </div>
+      <div class="toolbar" id="answersBar" hidden>
+        <span id="answersHead"></span><span class="spacer"></span>
+        <label class="check" style="margin:0"><input type="checkbox" id="showLogic"> Show the logic too</label>
       </div>
       <div id="answers"></div>
     </section>
 
     <section data-panel="rules" hidden>
-      <div class="toolbar"><span class="hint" style="margin:0">Rules from <code>knowledge_base/seo_rules.fol</code>, grouped by stratum (negation only uses lower strata).</span>
-        <span class="spacer"></span><label class="check" style="margin:0"><input type="checkbox" id="asClause"> Show as clauses</label></div>
+      <div class="card explain">
+        <h3 class="panel-title">📘 How to read the rules</h3>
+        <div class="explain-grid">
+          <div><h4>📄 Facts</h4><p>Things AWR told us. <code>Ranking('banana bread', 1)</code> means “we rank #1 for banana bread”. <code>CompetitorRanking(K, C, P)</code> means “competitor C ranks #P for keyword K”.</p></div>
+          <div><h4>🧠 Rules</h4><p>“If … then …” statements. <code>A :- B, C.</code> reads “<b>A</b> is true <b>if</b> B and C are true”. The app keeps applying every rule to the facts until nothing new comes out.</p></div>
+          <div><h4>🔤 Capital letters</h4><p>Blanks to fill in: <b>K</b> = any keyword, <b>P</b> = a position, <b>C</b> = a competitor, <b>G</b> = a keyword group. A rule works for every value that fits.</p></div>
+          <div><h4>🚫 “not”</h4><p><code>not Dropped(K)</code> means “nothing in the data shows K dropped”. If something can't be shown, it counts as false. This is called the <i>closed-world assumption</i>.</p></div>
+          <div><h4>🧱 Strata (layers)</h4><p>You can only say “K did <i>not</i> drop” after you've finished finding <i>every</i> keyword that did drop. So the rules run in layers (one layer is a <b>stratum</b>, several are <b>strata</b>). Layer 0 works from the facts; each later layer may use “not” about things earlier layers have fully worked out.</p></div>
+          <div><h4>🔣 Symbols in the logic</h4><p><b>∀</b> for every · <b>∧</b> and · <b>¬</b> not · <b>→</b> then · <b>:-</b> if. Example: ∀K (Dropped(K) → NeedsOptimization(K)) = “every keyword that dropped needs work”.</p></div>
+        </div>
+      </div>
+      <div class="toolbar"><span class="hint" style="margin:0">From <code>knowledge_base/seo_rules.fol</code>.</span><span class="spacer"></span>
+        <label class="check" style="margin:0"><input type="checkbox" id="asClause"> Show as written in the file</label></div>
       <div id="rules"></div>
     </section>
   </main>
@@ -611,6 +668,18 @@ function goalFor(k) {
 }
 const PRIO = { 1: ["prio-1", "🔥 Urgent"], 2: ["prio-2", "⭐ High"], 3: ["prio-3", "🌱 Normal"] };
 
+function positionSentence(k) {
+  // "You're #14 (down from #5)", "You're not ranking (you were #3 in the previous update)", ...
+  const nr = p => p == null || p > 100, now = k.position, before = k.previous;
+  let text = nr(now) ? "You're <b>not ranking</b>" : `You're <b>#${now}</b>`;
+  if (before != null && before !== now && !(nr(before) && nr(now))) {
+    if (nr(now)) text += ` (you were #${before} in the previous update)`;
+    else if (nr(before)) text += " (new: you weren't ranking in the previous update)";
+    else text += before > now ? ` (up from #${before})` : ` (down from #${before})`;
+  }
+  return text;
+}
+
 function raceHtml(k) {
   // position track: #1 on the left, 30+ on the right
   const MAX = 31, x = p => ((Math.min(p ?? MAX, MAX) - 1) / (MAX - 1) * 100).toFixed(2) + "%";
@@ -623,9 +692,9 @@ function raceHtml(k) {
   (k.rivals || []).forEach(r => parts.push(`<div class="mk rival" style="left:${x(r.position)}" title="${esc(r.site)} #${r.position}"></div>`));
   parts.push(`<div class="mk you" style="left:${x(k.position)}" title="You: ${esc(fmtPos(k.position))}">${k.position > 100 ? "–" : k.position}</div>`);
   const rivals = (k.rivals || []).map(r => `${esc(r.site)} <b>#${r.position}</b>`).join(", ");
-  const moved = k.previous != null && k.previous !== k.position ? ` (was ${esc(fmtPos(k.previous))})` : "";
+  const notRanking = k.position == null || k.position > 100;
   return `<div class="race" aria-hidden="true">${parts.join("")}</div>
-    <div class="race-caption">🔵 You <b>${esc(fmtPos(k.position))}</b>${moved}${rivals ? ` · ♦ ahead of you: ${rivals}` : ""}</div>`;
+    <div class="race-caption">🔵 ${positionSentence(k)}${rivals ? ` · ♦ ${notRanking ? "Ranking instead" : "Ahead of you"}: ${rivals}` : ""}</div>`;
 }
 
 function stepRow(s, i) {
@@ -635,7 +704,8 @@ function stepRow(s, i) {
       <span class="ico" aria-hidden="true">${a.icon}</span>
       <span class="txt"><b>${esc(a.label)}</b><span class="detail">${esc(main)}${detail ? " · " + esc(detail) : ""}</span></span>
       <span class="pts" title="Effort (cost)">⚡ ${s.cost}</span></label>
-    <details><summary>Why is this allowed?</summary><div class="because">${esc(s.action)}<br>because ${s.because.map(esc).join(" ∧ ")}</div></details></li>`;
+    <details><summary>Why this step?</summary><ul class="why-list">${(s.because_text || s.because).map(t => `<li>${esc(t)}</li>`).join("")}</ul>
+      <div class="because">${esc(s.action)} because ${s.because.map(esc).join(" ∧ ")}</div></details></li>`;
 }
 
 function renderPlan() {
@@ -775,20 +845,52 @@ $("btnDownloadFacts").onclick = async () => {
 };
 
 // ------------------------------------------------------------------ query + rules
-const EXAMPLES = ["NeedsOptimization(K), BeatenBy(K, C)", "Dropped(K), Ranking(K, P), PreviousRanking(K, P0), D is P - P0",
-  "FirstPage(K), LosingToCompetitor(K)", "OutrankedByAll(K)", "InGroup(K, G), Priority(K, 1)", "Healthy(K)",
-  "StrikingDistance(K), not LosingToCompetitor(K)"];
-$("examples").innerHTML = '<span class="hint" style="margin:0">Examples:</span>' + EXAMPLES.map(q => `<button class="pill mono" data-q="${esc(q)}">${esc(q)}</button>`).join("");
-$("examples").querySelectorAll("[data-q]").forEach(b => b.onclick = () => { $("goal").value = b.dataset.q; $("btnQuery").click(); });
-$("goal").addEventListener("keydown", e => { if (e.key === "Enter") $("btnQuery").click(); });
-$("btnQuery").onclick = async () => {
-  const r = await api("query", { goal: $("goal").value, why: $("why").checked }, "Answering query…").catch(() => null);
+const QUESTIONS = [
+  ["Which keywords need work, and who beats us on them?", "NeedsOptimization(K), BeatenBy(K, C)"],
+  ["Which keywords dropped, and by how much?", "Dropped(K), Ranking(K, P), PreviousRanking(K, P0), D is P - P0"],
+  ["Which page-1 keywords are we still losing?", "FirstPage(K), LosingToCompetitor(K)"],
+  ["Quick wins: close to the top and nobody ahead?", "StrikingDistance(K), not LosingToCompetitor(K)"],
+  ["Where is every competitor ahead of us?", "OutrankedByAll(K)"],
+  ["Which urgent keywords are in which group?", "InGroup(K, G), Priority(K, 1)"],
+  ["Which keywords are healthy?", "Healthy(K)"],
+  ["What priority does each keyword have?", "Priority(K, P)"],
+];
+$("questions").innerHTML = QUESTIONS.map(([q, g], i) => `<button class="question" data-i="${i}">${esc(q)}</button>`).join("");
+$("questions").querySelectorAll("[data-i]").forEach(b => b.onclick = () => {
+  const [q, g] = QUESTIONS[+b.dataset.i]; $("goal").value = g; ask(q);
+});
+$("goal").addEventListener("keydown", e => { if (e.key === "Enter") ask(); });
+$("btnQuery").onclick = () => ask();
+$("showLogic").onchange = () => $("answers").classList.toggle("show-logic", $("showLogic").checked);
+const PROOF_ICON = { rule: "🧠", fact: "📄", calc: "🧮", not: "🚫" };
+const PROOF_NOTE = { fact: "AWR data", calc: "calculation", not: "nothing in the data says otherwise" };
+function proofHtml(n) {
+  const note = n.kind === "rule" ? `<span class="note">rule: ${esc(n.rule)}</span>` : `<span class="note">${PROOF_NOTE[n.kind]}</span>`;
+  return `<li class="pf pf-${n.kind}"><span class="pf-icon" aria-hidden="true">${PROOF_ICON[n.kind]}</span><div><div>${esc(n.text)} ${note}</div>
+    <div class="logic">${esc(n.logic)}${n.rule_logic ? `  ⇐  ${esc(n.rule_logic)}` : ""}</div>
+    ${n.children?.length ? `<div class="because-word">because</div><ul class="proof">${n.children.map(proofHtml).join("")}</ul>` : ""}</div></li>`;
+}
+async function ask(question) {
+  const goal = $("goal").value.trim();
+  if (!goal) return;
+  const r = await api("query", { goal }, "Thinking…").catch(() => null);
   if (!r) return;
-  $("answers").innerHTML = `<div class="hint" style="margin:0 0 8px">${r.answers.length} answer${r.answers.length === 1 ? "" : "s"}</div>` +
-    (r.answers.length ? r.answers.map(a => `<div class="answer"><span class="mono">${
-      Object.keys(a.bindings).length ? Object.entries(a.bindings).map(([v, t]) => `<b>${esc(v)}</b> = ${esc(t)}`).join(", ") : "yes"}</span>${
-      a.proof.length ? `<pre class="proof">${esc(a.proof.join("\n"))}</pre>` : ""}</div>`).join("") : `<div class="empty">No: the knowledge base does not entail this query.</div>`);
-};
+  $("answersBar").hidden = false;
+  $("answersHead").innerHTML = `${question ? `<b>${esc(question)}</b> · ` : ""}<span class="mono">${esc(goal)}</span>`;
+  if (!r.answers.length) {
+    $("answers").innerHTML = `<div class="empty">❌ <b>No.</b> Nothing in the data makes this true.</div>`;
+    return;
+  }
+  const more = r.total > r.answers.length ? ` (showing the first ${r.answers.length})` : "";
+  $("answers").innerHTML = `<div class="hint" style="margin:0 0 8px">✅ ${r.total} answer${r.total === 1 ? "" : "s"}${more}</div>` +
+    r.answers.map(a => {
+      const chips = Object.entries(a.bindings).map(([v, t]) => `<span class="chip c-neutral mono">${esc(v)} = ${esc(t)}</span>`).join("");
+      return `<div class="answer"><div class="answer-text">${a.text.map(esc).join(" <span class='and'>and</span> ")}</div>
+        <div class="logic">${chips}</div>
+        ${a.proof.length ? `<details><summary>Why is this true?</summary><ul class="proof">${a.proof.map(proofHtml).join("")}</ul></details>` : ""}</div>`;
+    }).join("");
+  $("answers").classList.toggle("show-logic", $("showLogic").checked);
+}
 async function loadRules() {
   const r = await api("rules", {}, "Loading rules…").catch(() => null);
   if (!r) return;
@@ -796,8 +898,11 @@ async function loadRules() {
 }
 function renderRules() {
   const clause = $("asClause").checked;
-  $("rules").innerHTML = state.rules.strata.map((s, i) => `<div class="card"><h2>Stratum ${i}</h2>${
-    s.map(r => `<div class="rule">${esc(clause ? r.clause : r.fol)}</div>`).join("")}</div>`).join("");
+  const layerTitle = i => i === 0 ? "Layer 0 · works directly from the AWR facts"
+    : `Layer ${i} · may use “not” on what layers 0–${i - 1} worked out`;
+  $("rules").innerHTML = state.rules.strata.map((s, i) => `<div class="card"><h2>🧱 ${esc(layerTitle(i))}</h2>${
+    s.map(r => `<div class="rule"><div class="rule-doc"><span class="chip c-info mono">${esc(r.head)}</span> ${esc(r.doc || "")}</div>
+      <div class="rule-logic">${esc(clause ? r.clause : r.fol)}</div></div>`).join("")}</div>`).join("");
 }
 $("asClause").onchange = () => state.rules && renderRules();
 
@@ -813,6 +918,11 @@ if (location.hash.startsWith("#demo")) {
       if (location.hash.includes("compare")) $("algorithm").value = "compare";
       $("btnPlan").click();
     }
+    if (location.hash === "#demo-query") {   // ask the first question and open its proof
+      selectTab("query"); $("questions").querySelector("[data-i='1']").click();
+      setTimeout(() => document.querySelector("#answers details")?.setAttribute("open", ""), 500);
+    }
+    if (location.hash === "#demo-rules") selectTab("rules");
   })();
 }
 </script>

@@ -17,7 +17,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from . import awr
-from .fol import Atom, KnowledgeBase, Var, explain, fmt, load_program, parse_body, substitute
+from .explain import proof_tree, sentence
+from .fol import BUILTINS, Atom, KnowledgeBase, Not, Var, fmt, load_program, parse_body, substitute
 from .planner import RULES_FILE, SEOPlanningProblem, plan
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -254,7 +255,8 @@ def api_plan(body):
         for action, cost in res.plan:
             steps.append({"action": repr(action), "name": action.schema.name, "keyword": action.args[0],
                           "cost": cost, "text": p.describe(action),
-                          "because": [repr(l) for l in action.reasons]})
+                          "because": [repr(l) for l in action.reasons],
+                          "because_text": [sentence(l) for l in action.reasons]})
     details = {k: _keyword_row(p.kb, p.static, k) for k in p.scope}
     return {"info": info, "scope": p.scope, "keywords": details, "algorithm": res.algorithm, "found": res.found,
             "reason": res.reason, "cost": res.cost, "steps": steps, "runs": runs}
@@ -262,7 +264,7 @@ def api_plan(body):
 
 def api_query(body):
     if not SESSION.facts:
-        raise UserError("Analyse the data first (choose your website and click Analyse).")
+        raise UserError("Load ranking data and choose your website first (steps 2 and 3).")
     rule_facts, rules = load_program(RULES_FILE)
     kb = KnowledgeBase(rules)
     proofs = {}
@@ -271,27 +273,34 @@ def api_query(body):
         goal = parse_body(body["goal"])
     except SyntaxError as e:
         raise UserError(f"Syntax error: {e}")
-    answers = kb.query(goal, store)[:500]
+    answers = sorted(kb.query(goal, store), key=lambda a: [(v.name, fmt(t)) for v, t in a.items()])
     out = []
-    for a in sorted(answers, key=lambda a: [(v.name, fmt(t)) for v, t in a.items()]):
+    for n, a in enumerate(answers[:500]):
+        ground = [substitute(lit, a) for lit in goal]
+        # the answer as a sentence: every condition of the query, filled in
+        text = [sentence(l) for l in ground if not (isinstance(l, Atom) and l.pred == "is")]
         proof = []
-        if body.get("why"):
-            for lit in goal:
-                if isinstance(lit, Atom) and lit.pred[0].isupper():
-                    proof += explain(substitute(lit, a), proofs)
-        out.append({"bindings": {v.name: fmt(t) for v, t in a.items()}, "proof": proof})
-    return {"answers": out}
+        if n < 100:   # proofs for the first 100 answers keep the response small
+            for lit in ground:
+                if isinstance(lit, Atom) and lit.pred not in BUILTINS:
+                    proof.append(proof_tree(lit, proofs))
+                elif isinstance(lit, Not):
+                    proof.append({"kind": "not", "text": sentence(lit), "logic": repr(lit)})
+        out.append({"bindings": {v.name: fmt(t) for v, t in a.items()}, "text": text, "proof": proof})
+    return {"answers": out, "total": len(answers), "question": [sentence(l) for l in goal if
+                                                                 not (isinstance(l, Atom) and l.pred in BUILTINS)]}
 
 
 def api_rules(body):
     _, rules = load_program(RULES_FILE)
     kb = KnowledgeBase(rules)
-    return {"strata": [[{"fol": r.to_fol(), "clause": repr(r)} for r in s] for s in kb.strata]}
+    return {"strata": [[{"fol": r.to_fol(), "clause": repr(r), "doc": r.doc, "head": r.head.pred} for r in s]
+                       for s in kb.strata]}
 
 
 def api_facts(body):
     if not SESSION.facts:
-        raise UserError("Analyse the data first.")
+        raise UserError("Load ranking data and choose your website first.")
     info = SESSION.info
     lines = [f"% Facts generated from Advanced Web Ranking data ({SESSION.source})",
              f"% site: {info['site']}   search engine: {info['engine'] or 'n/a'}",

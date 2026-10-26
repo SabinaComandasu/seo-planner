@@ -16,7 +16,8 @@ import sys
 from pathlib import Path
 
 from . import awr
-from .fol import Atom, KnowledgeBase, explain, fmt, load_program, parse_body, substitute
+from .explain import proof_lines, proof_tree, sentence
+from .fol import Atom, KnowledgeBase, fmt, load_program, parse_body, substitute
 from .planner import RULES_FILE, load_problem, plan
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -81,9 +82,12 @@ def cmd_query(args):
     for a in answers:
         print(", ".join(f"{v} = {fmt(t)}" for v, t in a.items()) if a else "yes")
         if args.why:
-            for lit in body:
-                if isinstance(lit, Atom) and lit.pred not in ("is",) and not lit.pred[0] in "<>=!":
-                    for line in explain(substitute(lit, a), proofs, 1):
+            ground = [substitute(lit, a) for lit in body]
+            print("  " + " and ".join(sentence(l) for l in ground if not (isinstance(l, Atom) and l.pred == "is")))
+            print("  Why:")
+            for lit in ground:
+                if isinstance(lit, Atom) and lit.pred[0].isupper():
+                    for line in proof_lines(proof_tree(lit, proofs), 1):
                         print(line)
             print()
     print(f"({len(answers)} answer{'s' if len(answers) != 1 else ''})")
