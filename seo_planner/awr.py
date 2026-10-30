@@ -18,6 +18,7 @@ import io
 import json
 import os
 import re
+import sys
 import time
 import urllib.error
 import urllib.parse
@@ -33,8 +34,12 @@ from .fol import Atom
 
 BASE_URL = "https://api.advancedwebranking.com/v3"
 API_HOST = urllib.parse.urlparse(BASE_URL).hostname
-RAW_DIR = Path(__file__).resolve().parent.parent / "data" / "raw"
-CACHE_DIR = Path(__file__).resolve().parent.parent / "data" / "cache"
+if getattr(sys, "frozen", False):  # packaged .exe: the bundle folder is temporary, keep data per user
+    DATA_DIR = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "SEO Quest Planner"
+else:
+    DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+RAW_DIR = DATA_DIR / "raw"
+CACHE_DIR = DATA_DIR / "cache"
 NOT_RANKING = 101
 
 

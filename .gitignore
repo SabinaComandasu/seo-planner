@@ -4,3 +4,6 @@ data/raw/
 .env
 .idea/
 data/cache/
+dist/
+build/
+*.spec

@@ -25,10 +25,14 @@ body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 sys
 header { display: flex; align-items: center; gap: 12px; padding: 14px 24px; background: var(--panel); border-bottom: 1px solid var(--border); }
 header h1 { font-size: 17px; margin: 0; }
 header .sub { color: var(--muted); font-size: 13px; }
-header .pill { margin-left: auto; }
+header .docs-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 99px;
+  background: var(--accent); color: var(--accent-ink); font-size: 12.5px; font-weight: 600; text-decoration: none; white-space: nowrap;
+  box-shadow: 0 0 0 3px var(--accent-soft); }
+header .docs-btn:hover { filter: brightness(1.08); }
+header .docs-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .layout { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 20px; padding: 20px 24px; align-items: start; }
 .layout > * { min-width: 0; }   /* let wide tables scroll inside their box instead of widening the page */
-@media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 16px; } header { flex-wrap: wrap; padding: 12px 16px; } header .pill { margin-left: 0; } }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; padding: 16px; } header { flex-wrap: wrap; padding: 12px 16px; } header .docs-btn { margin-left: 0; } }
 .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow); padding: 16px; margin-bottom: 16px; }
 .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
 .step { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 700; }
@@ -212,6 +216,7 @@ ul.proof ul.proof { border-left: 2px solid var(--border); margin-left: 9px; padd
     <h1>SEO Optimization Planner</h1>
     <div class="sub">First-order logic + search over Advanced Web Ranking data</div>
   </div>
+  <a class="docs-btn" href="/docs" target="_blank" rel="noopener">📘 Documentation</a>
   <span class="pill" id="sourcePill">No data loaded</span>
 </header>
 

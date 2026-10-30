@@ -9,9 +9,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import secrets
 import threading
 import traceback
+import urllib.request
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,6 +25,7 @@ from .planner import RULES_FILE, SEOPlanningProblem, plan
 
 ROOT = Path(__file__).resolve().parent.parent
 INDEX = Path(__file__).resolve().parent / "static" / "index.html"
+DOCS = INDEX.with_name("docs.html")
 SAMPLE_CSV = ROOT / "data" / "sample_awr_export.csv"
 SESSION_SECRET = secrets.token_urlsafe(24)
 MAX_NODES = 30_000
@@ -316,6 +319,11 @@ ROUTES = {"connect": api_connect, "disconnect": api_disconnect, "dates": api_dat
 
 # ---------------------------------------------------------------------- HTTP plumbing
 
+class Server(ThreadingHTTPServer):
+    # On Windows SO_REUSEADDR lets a second copy silently share a busy port; we want bind to fail instead.
+    allow_reuse_address = os.name != "nt"
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "SEOPlanner/1.0"
 
@@ -337,6 +345,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path in ("/", "/index.html"):
             html = INDEX.read_text(encoding="utf-8").replace("{{SESSION_SECRET}}", SESSION_SECRET)
             self._send(200, html.encode("utf-8"), "text/html; charset=utf-8")
+        elif self.path in ("/docs", "/docs.html"):
+            self._send(200, DOCS.read_bytes(), "text/html; charset=utf-8")
         else:
             self._send(404, {"error": "not found"})
 
@@ -357,14 +367,31 @@ class Handler(BaseHTTPRequestHandler):
             self._send(500, {"error": f"{type(e).__name__}: {e}"})
 
 
+def _planner_running(url) -> bool:
+    try:
+        with urllib.request.urlopen(url, timeout=2) as r:
+            return r.headers.get("Server", "").startswith(Handler.server_version)
+    except OSError:
+        return False
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="SEO planner web interface")
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--no-browser", action="store_true")
     args = ap.parse_args(argv)
-    server = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     url = f"http://127.0.0.1:{args.port}/"
-    print(f"SEO planner running at {url}  (Ctrl+C to stop)")
+    try:
+        server = Server(("127.0.0.1", args.port), Handler)
+    except OSError:
+        if _planner_running(url):  # already open: reuse that copy instead of starting a second one
+            print(f"SEO planner is already running at {url}")
+            if not args.no_browser:
+                webbrowser.open(url)
+            return
+        server = Server(("127.0.0.1", 0), Handler)  # port used by another program: take any free one
+        url = f"http://127.0.0.1:{server.server_address[1]}/"
+    print(f"SEO planner running at {url}  (close this window or press Ctrl+C to stop)")
     if not args.no_browser:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:

@@ -60,6 +60,22 @@ Choosing **All keywords** uses the full `export-rankings` export. In that case, 
 
 **Errors.** AWR reports some errors as HTTP 200 with a body such as `{"response_code": 11, "message": "Failed - invalid token"}`. The client turns these into readable errors.
 
+### Single-file .exe (no Python needed)
+
+To give the app to someone who doesn't have Python, build one Windows executable:
+
+```
+python -m pip install pyinstaller
+python -m PyInstaller --onefile --name SEO-Quest-Planner --add-data "seo_planner/static;seo_planner/static" --add-data "knowledge_base;knowledge_base" --add-data "data/sample_awr_export.csv;data" launcher.py
+```
+
+This creates `dist/SEO-Quest-Planner.exe` (about 10 MB). Double-clicking it opens the app in the browser. A console window stays open while the app runs; closing that window stops the app.
+
+- **Cache location:** the packaged app stores its cache in `%LOCALAPPDATA%\SEO Quest Planner`.
+- **Port:** if port 8765 is busy, the app picks a free port.
+- **Windows warning:** the exe isn't code-signed, so on first run Windows SmartScreen shows "Windows protected your PC". Click **More info → Run anyway**.
+- **Mac:** a Mac version has to be built on a Mac, using `:` instead of `;` in `--add-data`.
+
 ## Quick start (command line)
 
 ```powershell
